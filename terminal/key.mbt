@@ -1,6 +1,6 @@
 ///|
 /// A key event read from stdin in raw mode.
-pub enum Key {
+pub(all) enum Key {
   Char(Char)
   Enter
   Backspace
@@ -22,7 +22,7 @@ pub enum Key {
   CtrlS
   CtrlZ
   Unknown(Array[Int])
-}
+} derive(Eq, Show)
 
 ///|
 /// Decode a sequence of raw bytes into a Key.
