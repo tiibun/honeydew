@@ -1,0 +1,3 @@
+{
+  "native-stub": ["terminal_stub.c"]
+}
