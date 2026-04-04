@@ -137,14 +137,29 @@ loop {
 ## C FFI Plan
 
 MoonBit's native backend allows calling C functions directly.
-The following C functions are needed:
+`terminal/terminal_stub.c` uses `#ifdef _WIN32` to provide two implementations
+in a single file, since MoonBit's `moon.pkg.json` does not yet support
+platform-specific native-stub selection.
+
+### POSIX (macOS / Linux)
 
 | C function | Purpose |
 |---|---|
-| `tcgetattr` | Save original terminal settings |
-| `tcsetattr` | Restore / set raw mode flags |
-| `read` | Read one byte from stdin (fd 0) |
+| `tcgetattr` / `tcsetattr` | Save/restore terminal settings, enter raw mode |
+| `read(STDIN_FILENO)` | Read one byte from stdin |
 | `ioctl(TIOCGWINSZ)` | Get terminal window size |
+
+### Windows
+
+| C function | Purpose |
+|---|---|
+| `GetConsoleMode` / `SetConsoleMode` | Enter/exit raw mode, enable VT processing |
+| `_getch()` (`<conio.h>`) | Read one keypress without echo or buffering |
+| `GetConsoleScreenBufferInfo` | Get terminal window size |
+
+Arrow and navigation keys on Windows arrive as two-byte `_getch()` sequences.
+The stub translates them into ANSI escape sequences so `key.mbt` can decode
+them without any platform-specific logic.
 
 These will be wrapped in a small C stub file (`terminal/terminal_stub.c`)
 and declared with `extern "C"` in MoonBit.
