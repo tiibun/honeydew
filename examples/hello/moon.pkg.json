@@ -1,9 +1,0 @@
-{
-  "is-main": true,
-  "import": [
-    "tiibun/honeydew",
-    "tiibun/honeydew/style",
-    "tiibun/honeydew/layout",
-    "tiibun/honeydew/widget"
-  ]
-}

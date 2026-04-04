@@ -21,7 +21,7 @@ fn App::handle_key(self : App, key : @terminal.Key) -> Unit {
 }
 
 ///|
-fn App::render(self : App, frame : @honeydew.Frame) -> Unit {
+fn App::render(self : App, frame : @honeytui.Frame) -> Unit {
   let area = frame.size()
 
   // Split into three rows: top padding / content / bottom padding
@@ -78,7 +78,7 @@ fn App::render(self : App, frame : @honeydew.Frame) -> Unit {
 
 ///|
 fn main {
-  let terminal = match @honeydew.Terminal::new() {
+  let terminal = match @honeytui.Terminal::new() {
     Ok(t) => t
     Err(e) => {
       println("error: \{e}")

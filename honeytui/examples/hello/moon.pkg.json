@@ -1,0 +1,9 @@
+{
+  "is-main": true,
+  "import": [
+    "tiibun/honeytui",
+    "tiibun/honeytui/style",
+    "tiibun/honeytui/layout",
+    "tiibun/honeytui/widget"
+  ]
+}

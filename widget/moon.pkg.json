@@ -1,7 +1,0 @@
-{
-  "import": [
-    "tiibun/honeydew/style",
-    "tiibun/honeydew/layout",
-    "tiibun/honeydew/buffer"
-  ]
-}

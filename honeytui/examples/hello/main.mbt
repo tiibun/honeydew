@@ -1,6 +1,6 @@
 ///|
 fn main {
-  let terminal = match @honeydew.Terminal::new() {
+  let terminal = match @honeytui.Terminal::new() {
     Ok(t) => t
     Err(e) => {
       println("error: \{e}")

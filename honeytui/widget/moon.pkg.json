@@ -1,0 +1,7 @@
+{
+  "import": [
+    "tiibun/honeytui/style",
+    "tiibun/honeytui/layout",
+    "tiibun/honeytui/buffer"
+  ]
+}
