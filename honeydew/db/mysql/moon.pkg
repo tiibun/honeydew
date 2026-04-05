@@ -1,0 +1,13 @@
+import {
+  "tiibun/honeydew/db",
+}
+
+options(
+  "cc-flags": [
+    "-I/usr/include/mysql",
+    "-I/usr/local/include/mysql",
+    "-I/opt/homebrew/include/mysql",
+  ],
+  "cc-link-flags": [ "-lmysqlclient" ],
+  "native-stub": [ "mysql_stub.c" ],
+)

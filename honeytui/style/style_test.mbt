@@ -92,15 +92,12 @@ test "Style::bg changes background" {
 
 ///|
 test "Style with modifier" {
-  let s = @style.Style::default()
-    .fg(@style.Green)
-    .add_modifier(@style.bold)
+  let s = @style.Style::default().fg(@style.Green).add_modifier(@style.bold)
   assert_eq(s.to_ansi(), "\u001b[0;1;32;49m")
 }
 
 ///|
 test "Style with multiple modifiers" {
-  let s = @style.Style::default()
-    .add_modifier(@style.bold.or(@style.italic))
+  let s = @style.Style::default().add_modifier(@style.bold.or(@style.italic))
   assert_eq(s.to_ansi(), "\u001b[0;1;3;39;49m")
 }

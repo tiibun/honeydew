@@ -29,32 +29,53 @@ pub fn RawMode::exit(self : RawMode) -> Result[Unit, String] {
   Ok(())
 }
 
+// Reused across all read_byte() calls (single-threaded cooperative scheduler).
+let stdin_buf : FixedArray[Byte] = FixedArray::make(1, b'\x00')
+
 ///|
-/// Read a single Key event from stdin (blocking).
-pub fn read_key() -> Key {
-  let b0 = hd_read_byte()
+/// Read a single byte from stdin asynchronously. Returns -1 on EOF.
+async fn read_byte() -> Int {
+  let n = @async_stdio.stdin.read(stdin_buf, offset=0, max_len=1)
+  if n == 0 { -1 } else { stdin_buf[0].to_int() }
+}
+
+///|
+/// Read a single Key event from stdin (async).
+/// After an ESC byte, subsequent bytes are read with a 50 ms timeout
+/// to distinguish bare ESC from escape sequences (arrow keys, etc.).
+pub async fn read_key() -> Key {
+  let b0 = read_byte()
+  if b0 < 0 {
+    return Unknown([])
+  }
   if b0 != 27 {
     return Key::from_bytes([b0])
   }
-  // ESC — try to read an escape sequence
-  let b1 = hd_read_byte()
-  if b1 < 0 {
-    return Esc
+  // ESC — attempt to read the rest of the escape sequence within 50 ms.
+  match
+    @async.with_timeout_opt(50, async fn() {
+      let b1 = read_byte()
+      if b1 < 0 {
+        return Esc
+      }
+      if b1 != 91 {
+        return Key::from_bytes([27, b1])
+      }
+      let b2 = read_byte()
+      if b2 < 0 {
+        return Unknown([27, b1])
+      }
+      // ESC [ digit ~ sequences (e.g. PageUp/PageDown/Delete)
+      if b2 >= 48 && b2 <= 57 {
+        let b3 = read_byte()
+        Key::from_bytes([27, b1, b2, if b3 < 0 { 0 } else { b3 }])
+      } else {
+        Key::from_bytes([27, b1, b2])
+      }
+    }) {
+    None => Esc // timeout → bare ESC
+    Some(key) => key
   }
-  if b1 != 91 {
-    // ESC + something other than '['
-    return Key::from_bytes([27, b1])
-  }
-  let b2 = hd_read_byte()
-  if b2 < 0 {
-    return Unknown([27, b1])
-  }
-  // ESC [ digit ~ sequences (e.g. PageUp/PageDown/Delete)
-  if b2 >= 48 && b2 <= 57 {
-    let b3 = hd_read_byte()
-    return Key::from_bytes([27, b1, b2, b3])
-  }
-  Key::from_bytes([27, b1, b2])
 }
 
 ///|

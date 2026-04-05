@@ -25,24 +25,18 @@ fn App::render(self : App, frame : @honeytui.Frame) -> Unit {
   let area = frame.size()
 
   // Split into three rows: top padding / content / bottom padding
-  let rows = @layout.Layout::new(
-    @layout.Vertical,
-    [
-      @layout.Percentage(35),
-      @layout.Length(7),
-      @layout.Percentage(65),
-    ],
-  ).split(area)
+  let rows = @layout.Layout::new(@layout.Vertical, [
+    @layout.Percentage(35),
+    @layout.Length(7),
+    @layout.Percentage(65),
+  ]).split(area)
 
   // Split the content row into three columns: left pad / content / right pad
-  let cols = @layout.Layout::new(
-    @layout.Horizontal,
-    [
-      @layout.Percentage(30),
-      @layout.Percentage(40),
-      @layout.Percentage(30),
-    ],
-  ).split(rows[1])
+  let cols = @layout.Layout::new(@layout.Horizontal, [
+    @layout.Percentage(30),
+    @layout.Percentage(40),
+    @layout.Percentage(30),
+  ]).split(rows[1])
 
   let content_area = cols[1]
 
@@ -67,9 +61,7 @@ fn App::render(self : App, frame : @honeytui.Frame) -> Unit {
       @style.Style::default().fg(@style.Yellow).add_modifier(@style.bold),
     )
 
-  let para = @widget.Paragraph::new(
-    "\n  \{count_text}\n\n  \{hint}",
-  )
+  let para = @widget.Paragraph::new("\n  \{count_text}\n\n  \{hint}")
     .style(@style.Style::default().fg(count_color))
     .block(block)
 
@@ -78,17 +70,19 @@ fn App::render(self : App, frame : @honeytui.Frame) -> Unit {
 
 ///|
 fn main {
-  let terminal = match @honeytui.Terminal::new() {
-    Ok(t) => t
-    Err(e) => {
-      println("error: \{e}")
-      return
+  @async.run_async_main(async fn() {
+    let terminal = match @honeytui.Terminal::new() {
+      Ok(t) => t
+      Err(e) => {
+        println("error: \{e}")
+        return
+      }
     }
-  }
-  let app = App::new()
-  while app.running {
-    terminal.draw(fn(frame) { app.render(frame) })
-    app.handle_key(terminal.read_key())
-  }
-  terminal.restore()
+    let app = App::new()
+    while app.running {
+      terminal.draw(fn(frame) { app.render(frame) })
+      app.handle_key(terminal.read_key())
+    }
+    terminal.restore()
+  })
 }

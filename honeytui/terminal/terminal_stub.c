@@ -63,30 +63,6 @@ static void push_ansi(int len, int b2, int b3) {
   key_buf_len = len; key_buf_pos = 0;
 }
 
-int hd_read_byte(void) {
-  if (key_buf_pos < key_buf_len) return key_buf[key_buf_pos++];
-  key_buf_len = 0; key_buf_pos = 0;
-
-  int c = _getch();
-  if (c != 0 && c != 0xE0) return c;  /* Normal ASCII or control byte */
-
-  /* Extended key prefix: read the scan code */
-  int scan = _getch();
-  switch (scan) {
-    case 0x48: push_ansi(3, 65,  0);    break;  /* Up    -> ESC [ A */
-    case 0x50: push_ansi(3, 66,  0);    break;  /* Down  -> ESC [ B */
-    case 0x4D: push_ansi(3, 67,  0);    break;  /* Right -> ESC [ C */
-    case 0x4B: push_ansi(3, 68,  0);    break;  /* Left  -> ESC [ D */
-    case 0x47: push_ansi(3, 72,  0);    break;  /* Home  -> ESC [ H */
-    case 0x4F: push_ansi(3, 70,  0);    break;  /* End   -> ESC [ F */
-    case 0x49: push_ansi(4, 53,  126);  break;  /* PgUp  -> ESC [ 5 ~ */
-    case 0x51: push_ansi(4, 54,  126);  break;  /* PgDn  -> ESC [ 6 ~ */
-    case 0x53: push_ansi(4, 51,  126);  break;  /* Del   -> ESC [ 3 ~ */
-    default:   return -1;
-  }
-  return key_buf[key_buf_pos++];
-}
-
 int hd_get_winsize(void) {
   HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
   CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -125,13 +101,6 @@ int hd_enter_raw_mode(void) {
 
 int hd_exit_raw_mode(void) {
   return tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios);
-}
-
-int hd_read_byte(void) {
-  unsigned char c;
-  int n = read(STDIN_FILENO, &c, 1);
-  if (n == 1) return (int)c;
-  return -1;
 }
 
 int hd_get_winsize(void) {

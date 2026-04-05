@@ -27,13 +27,16 @@ pub struct Layout {
 }
 
 ///|
-pub fn Layout::new(direction : Direction, constraints : Array[Constraint]) -> Layout {
+pub fn Layout::new(
+  direction : Direction,
+  constraints : Array[Constraint],
+) -> Layout {
   { direction, constraints, margin: 0 }
 }
 
 ///|
 pub fn Layout::margin(self : Layout, margin : Int) -> Layout {
-  { ..self, margin }
+  { ..self, margin, }
 }
 
 ///|
@@ -77,10 +80,8 @@ pub fn Layout::split(self : Layout, area : Rect) -> Array[Rect] {
   for i = 0; i < n; i = i + 1 {
     let size = sizes[i]
     let rect = match self.direction {
-      Horizontal =>
-        Rect::new(inner.x + offset, inner.y, size, inner.height)
-      Vertical =>
-        Rect::new(inner.x, inner.y + offset, inner.width, size)
+      Horizontal => Rect::new(inner.x + offset, inner.y, size, inner.height)
+      Vertical => Rect::new(inner.x, inner.y + offset, inner.width, size)
     }
     rects.push(rect)
     offset = offset + size

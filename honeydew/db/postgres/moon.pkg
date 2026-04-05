@@ -1,0 +1,4 @@
+import {
+  "tiibun/honeydew/db",
+  "moonbit-community/postgres/client" @pg,
+}

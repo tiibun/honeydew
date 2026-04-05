@@ -1,0 +1,13 @@
+import {
+  "tiibun/honeydew/app",
+  "tiibun/honeydew/db",
+  "tiibun/honeydew/ui",
+  "tiibun/honeytui",
+  "tiibun/honeytui/terminal",
+  "tiibun/honeytui/widget",
+  "moonbitlang/async" @async,
+}
+
+options(
+  "is-main": true,
+)

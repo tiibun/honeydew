@@ -2,3 +2,4 @@ members = [
   "./honeytui",
   "./honeydew",
 ]
+preferred_target = "native"

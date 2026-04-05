@@ -1,0 +1,11 @@
+import {
+  "tiibun/honeytui",
+  "tiibun/honeytui/style",
+  "tiibun/honeytui/layout",
+  "tiibun/honeytui/widget",
+  "moonbitlang/async" @async,
+}
+
+options(
+  "is-main": true,
+)

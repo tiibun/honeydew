@@ -1,0 +1,12 @@
+import {
+  "tiibun/honeydew/db",
+}
+
+import {
+  "tiibun/honeydew/db/sqlite" @db_sqlite,
+} for "test"
+
+options(
+  "cc-link-flags": [ "-lsqlite3" ],
+  "native-stub": [ "sqlite_stub.c" ],
+)

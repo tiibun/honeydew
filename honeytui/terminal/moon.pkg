@@ -1,0 +1,8 @@
+import {
+  "moonbitlang/async" @async,
+  "moonbitlang/async/stdio" @async_stdio,
+}
+
+options(
+  "native-stub": [ "terminal_stub.c" ],
+)

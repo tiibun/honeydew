@@ -38,12 +38,12 @@ pub fn Block::new() -> Block {
 
 ///|
 pub fn Block::title(self : Block, title : String) -> Block {
-  { ..self, title }
+  { ..self, title, }
 }
 
 ///|
 pub fn Block::borders(self : Block, borders : Borders) -> Block {
-  { ..self, borders }
+  { ..self, borders, }
 }
 
 ///|
@@ -68,8 +68,16 @@ pub fn Block::inner(self : Block, area : @layout.Rect) -> @layout.Rect {
   @layout.Rect::new(
     area.x + left,
     area.y + top,
-    if w > 0 { w } else { 0 },
-    if h > 0 { h } else { 0 },
+    if w > 0 {
+      w
+    } else {
+      0
+    },
+    if h > 0 {
+      h
+    } else {
+      0
+    },
   )
 }
 

@@ -26,10 +26,10 @@ test "Rect::inner too small returns zero" {
 ///|
 test "Layout vertical split equal halves" {
   let area = @layout.Rect::new(1, 1, 80, 24)
-  let chunks = @layout.Layout::new(
-    @layout.Vertical,
-    [@layout.Percentage(50), @layout.Percentage(50)],
-  ).split(area)
+  let chunks = @layout.Layout::new(@layout.Vertical, [
+    @layout.Percentage(50),
+    @layout.Percentage(50),
+  ]).split(area)
   assert_eq(chunks.length(), 2)
   assert_eq(chunks[0].y, 1)
   assert_eq(chunks[0].height, 12)
@@ -40,10 +40,10 @@ test "Layout vertical split equal halves" {
 ///|
 test "Layout horizontal split" {
   let area = @layout.Rect::new(1, 1, 80, 24)
-  let chunks = @layout.Layout::new(
-    @layout.Horizontal,
-    [@layout.Percentage(30), @layout.Percentage(70)],
-  ).split(area)
+  let chunks = @layout.Layout::new(@layout.Horizontal, [
+    @layout.Percentage(30),
+    @layout.Percentage(70),
+  ]).split(area)
   assert_eq(chunks.length(), 2)
   assert_eq(chunks[0].x, 1)
   assert_eq(chunks[0].width, 24)
@@ -55,10 +55,11 @@ test "Layout horizontal split" {
 ///|
 test "Layout Length constraint" {
   let area = @layout.Rect::new(1, 1, 80, 24)
-  let chunks = @layout.Layout::new(
-    @layout.Vertical,
-    [@layout.Length(3), @layout.Length(18), @layout.Length(3)],
-  ).split(area)
+  let chunks = @layout.Layout::new(@layout.Vertical, [
+    @layout.Length(3),
+    @layout.Length(18),
+    @layout.Length(3),
+  ]).split(area)
   assert_eq(chunks[0].height, 3)
   assert_eq(chunks[1].height, 18)
   assert_eq(chunks[2].height, 3)
@@ -67,10 +68,9 @@ test "Layout Length constraint" {
 ///|
 test "Layout with margin" {
   let area = @layout.Rect::new(1, 1, 80, 24)
-  let chunks = @layout.Layout::new(
-    @layout.Vertical,
-    [@layout.Percentage(100)],
-  ).margin(2).split(area)
+  let chunks = @layout.Layout::new(@layout.Vertical, [@layout.Percentage(100)])
+    .margin(2)
+    .split(area)
   assert_eq(chunks[0].x, 3)
   assert_eq(chunks[0].y, 3)
   assert_eq(chunks[0].width, 76)

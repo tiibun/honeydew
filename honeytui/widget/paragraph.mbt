@@ -14,7 +14,7 @@ pub fn Paragraph::new(text : String) -> Paragraph {
 
 ///|
 pub fn Paragraph::style(self : Paragraph, style : @style.Style) -> Paragraph {
-  { ..self, style }
+  { ..self, style, }
 }
 
 ///|

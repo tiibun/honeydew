@@ -66,7 +66,7 @@ pub fn Buffer::set_string(
   x : Int,
   y : Int,
   text : String,
-  style : @style.Style
+  style : @style.Style,
 ) -> Unit {
   let max_x = self.area.x + self.area.width
   let mut cur_x = x
@@ -84,7 +84,7 @@ pub fn Buffer::set_string(
 /// as a list of (x, y, Cell) tuples.
 pub fn Buffer::diff(
   self : Buffer,
-  previous : Buffer
+  previous : Buffer,
 ) -> Array[(Int, Int, Cell)] {
   let changes = []
   let same_size = previous.area.width == self.area.width &&

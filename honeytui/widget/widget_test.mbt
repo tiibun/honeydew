@@ -46,9 +46,7 @@ test "Block renders top edge" {
 test "Block renders title on top border" {
   let area = @layout.Rect::new(1, 1, 20, 5)
   let buf = @buffer.Buffer::new(area)
-  let block = @widget.Block::new()
-    .borders(@widget.Borders::all())
-    .title("hi")
+  let block = @widget.Block::new().borders(@widget.Borders::all()).title("hi")
   block.render(area, buf)
   assert_eq(buf.get(2, 1).symbol, "h")
   assert_eq(buf.get(3, 1).symbol, "i")
@@ -68,8 +66,9 @@ test "Paragraph renders text" {
 test "Paragraph with block renders inside border" {
   let area = @layout.Rect::new(1, 1, 20, 5)
   let buf = @buffer.Buffer::new(area)
-  let para = @widget.Paragraph::new("hi")
-    .block(@widget.Block::new().borders(@widget.Borders::all()))
+  let para = @widget.Paragraph::new("hi").block(
+    @widget.Block::new().borders(@widget.Borders::all()),
+  )
   para.render(area, buf)
   // Text starts inside the border (x=2, y=2)
   assert_eq(buf.get(2, 2).symbol, "h")

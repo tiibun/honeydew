@@ -16,7 +16,7 @@ pub fn Frame::size(self : Frame) -> @layout.Rect {
 pub fn[W : @widget.Widget] Frame::render_widget(
   self : Frame,
   widget : W,
-  area : @layout.Rect
+  area : @layout.Rect,
 ) -> Unit {
   widget.render(area, self.buf)
 }
@@ -94,8 +94,8 @@ fn Terminal::flush_diff(self : Terminal) -> Unit {
 }
 
 ///|
-/// Read a single key event (blocking).
-pub fn Terminal::read_key(self : Terminal) -> @terminal.Key {
+/// Read a single key event (async).
+pub async fn Terminal::read_key(self : Terminal) -> @terminal.Key {
   let _ = self
   @terminal.read_key()
 }
