@@ -56,7 +56,7 @@ pub async fn PgConn::query(
           )
           continue stream.next()
         }
-        @pg.SimpleQueryMessage::CommandComplete(_) => break
+        @pg.SimpleQueryMessage::CommandComplete(_) => continue stream.next()
       }
   }
   Ok({ columns, rows })

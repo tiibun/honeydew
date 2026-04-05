@@ -195,10 +195,11 @@ pub(all) struct AppState {
   focus : Panel
   status : String
   should_quit : Bool
+  group : @async.TaskGroup[Unit]
 }
 
 ///|
-pub fn AppState::new() -> AppState {
+pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
   {
     screen: Connect,
     conn: None,
@@ -210,16 +211,14 @@ pub fn AppState::new() -> AppState {
     focus: Editor,
     status: "Tab=切替  Enter=接続  q=終了",
     should_quit: false,
+    group,
   }
 }
 
 ///|
 /// Attempt to connect using the current ConnForm values.
-/// For PostgreSQL, spawns the connection background task into `group`.
-pub async fn AppState::do_connect(
-  self : AppState,
-  group : @async.TaskGroup[Unit],
-) -> AppState {
+/// For PostgreSQL, spawns the connection background task.
+pub async fn AppState::do_connect(self : AppState) -> AppState {
   let form = self.conn_form
   let result : Result[DbHandle, String] = match form.kind_idx {
     0 => {
@@ -240,7 +239,7 @@ pub async fn AppState::do_connect(
       ) catch {
         err => return { ..self, conn_form: { ..form, error: err.to_string() } }
       }
-      group.spawn_bg(async fn() { connection.run() }, allow_failure=true)
+      self.group.spawn_bg(async fn() { connection.run() }, allow_failure=true)
       Ok(Postgres(conn))
     }
     _ => {

@@ -30,13 +30,19 @@ pub fn RawMode::exit(self : RawMode) -> Result[Unit, String] {
 }
 
 // Reused across all read_byte() calls (single-threaded cooperative scheduler).
+
+///|
 let stdin_buf : FixedArray[Byte] = FixedArray::make(1, b'\x00')
 
 ///|
 /// Read a single byte from stdin asynchronously. Returns -1 on EOF.
 async fn read_byte() -> Int {
   let n = @async_stdio.stdin.read(stdin_buf, offset=0, max_len=1)
-  if n == 0 { -1 } else { stdin_buf[0].to_int() }
+  if n == 0 {
+    -1
+  } else {
+    stdin_buf[0].to_int()
+  }
 }
 
 ///|

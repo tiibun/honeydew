@@ -9,7 +9,7 @@ fn main {
       }
     }
     @async.with_task_group(async fn(group) {
-      let mut state = @app.AppState::new()
+      let mut state = @app.AppState::new(group)
       while !state.should_quit {
         terminal.draw(fn(frame) {
           match state.screen {
@@ -18,7 +18,7 @@ fn main {
           }
         })
         let key = terminal.read_key()
-        state = handle_key(state, key, group)
+        state = handle_key(state, key)
       }
       terminal.restore()
     })
@@ -29,7 +29,6 @@ fn main {
 async fn handle_key(
   state : @app.AppState,
   key : @terminal.Key,
-  group : @async.TaskGroup[Unit],
 ) -> @app.AppState {
   match key {
     CtrlC | CtrlQ => { ..state, should_quit: true }
@@ -41,7 +40,7 @@ async fn handle_key(
       }
     Enter =>
       match state.screen {
-        @app.Connect => state.do_connect(group)
+        @app.Connect => state.do_connect()
         @app.Main =>
           if state.focus == @app.Editor {
             run_query(state)
