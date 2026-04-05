@@ -7,6 +7,5 @@ import {
 } for "test"
 
 options(
-  "cc-link-flags": [ "-lsqlite3" ],
-  "native-stub": [ "sqlite_stub.c" ],
+  "native-stub": [ "sqlite3.c", "sqlite_stub.c" ],
 )

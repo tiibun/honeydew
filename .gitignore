@@ -2,3 +2,5 @@
 _build/
 .mooncakes/
 .moonagent/
+honeydew/db/sqlite/sqlite3.c
+honeydew/db/sqlite/sqlite3.h
