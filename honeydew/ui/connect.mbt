@@ -14,7 +14,7 @@ pub fn render_connect(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   let box_area = @layout.Rect::new(area.x + bx2, area.y + by2, bw, bh)
   let form = state.conn_form
   let kind_label = @app.DbKind::label(db_kind(form.kind_idx))
-  let title = " honeydew — \{kind_label} に接続 "
+  let title = " honeydew — Connect to \{kind_label} "
   let outer_block = @widget.Block::new()
     .title(title)
     .borders(@widget.Borders::all())
@@ -40,7 +40,7 @@ pub fn render_connect(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     @layout.Length(1), // 8: error / hint
   ]).split(inner)
   // DB kind row
-  let kind_text = "  DB種別: [ \{kind_label} ]  (↑↓で変更)"
+  let kind_text = "  DB: [ \{kind_label} ]  (↑↓ to change)"
   let kind_style = if form.focus_idx == 0 {
     @style.Style::default().fg(@style.Yellow).add_modifier(@style.bold)
   } else {
@@ -52,11 +52,8 @@ pub fn render_connect(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   )
   // Field labels differ by DB kind
   let field_labels : Array[String] = match form.kind_idx {
-    0 => ["データベースパス", "", "", "", ""]
-    _ =>
-      [
-        "ホスト", "ポート", "データベース", "ユーザー", "パスワード",
-      ]
+    0 => ["Database path", "", "", "", ""]
+    _ => ["Host", "Port", "Database", "User", "Password"]
   }
   let field_inputs : Array[@widget.Input] = match form.kind_idx {
     0 => [form.database, form.port, form.database, form.username, form.password]
@@ -87,7 +84,7 @@ pub fn render_connect(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   let bottom_text = if form.error != "" {
     form.error
   } else {
-    "Tab=次フィールド  Enter=接続  ↑↓=DB切替  q=終了"
+    "Tab/Shift-Tab=next/prev field  Enter=connect  ↑↓=change DB  q=quit"
   }
   let bottom_style = if form.error != "" {
     @style.Style::default().fg(@style.Red)

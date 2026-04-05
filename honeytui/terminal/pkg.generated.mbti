@@ -1,0 +1,65 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tiibun/honeytui/terminal"
+
+// Values
+pub fn clear_all() -> String
+
+pub fn clear_eol() -> String
+
+pub fn cursor_goto(Int, Int) -> String
+
+pub fn cursor_hide() -> String
+
+pub fn cursor_show() -> String
+
+pub fn enter_alternate_screen() -> String
+
+pub fn get_size() -> Result[(Int, Int), String]
+
+pub fn leave_alternate_screen() -> String
+
+pub async fn read_key() -> Key
+
+pub fn reset() -> String
+
+pub fn write(String) -> Unit
+
+// Errors
+
+// Types and methods
+pub(all) enum Key {
+  Char(Char)
+  Enter
+  Backspace
+  Delete
+  Esc
+  Tab
+  ShiftTab
+  Up
+  Down
+  Left
+  Right
+  Home
+  End
+  PageUp
+  PageDown
+  CtrlC
+  CtrlD
+  CtrlL
+  CtrlQ
+  CtrlS
+  CtrlZ
+  Unknown(Array[Int])
+} derive(Eq, Show)
+pub fn Key::from_bytes(Array[Int]) -> Self
+
+pub struct RawMode {
+  active : Bool
+}
+pub fn RawMode::enter() -> Result[Self, String]
+pub fn RawMode::exit(Self) -> Result[Unit, String]
+
+// Type aliases
+
+// Traits
+

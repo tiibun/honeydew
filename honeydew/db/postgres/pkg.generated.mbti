@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tiibun/honeydew/db/postgres"
+
+import {
+  "moonbit-community/postgres/client",
+  "tiibun/honeydew/db",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct PgConn {
+  client : @client.Client
+}
+pub fn PgConn::close(Self) -> Unit
+pub async fn PgConn::columns(Self, String) -> Result[Array[@db.ColumnInfo], String]
+pub async fn PgConn::connect(String, Int, String, String, String) -> (Self, @client.Connection)
+pub async fn PgConn::query(Self, String) -> Result[@db.QueryResult, String]
+pub async fn PgConn::tables(Self) -> Result[Array[String], String]
+
+// Type aliases
+
+// Traits
+

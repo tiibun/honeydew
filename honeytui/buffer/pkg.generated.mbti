@@ -1,0 +1,41 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tiibun/honeytui/buffer"
+
+import {
+  "tiibun/honeytui/layout",
+  "tiibun/honeytui/style",
+}
+
+// Values
+pub fn char_display_width(Char) -> Int
+
+pub fn str_display_width(String) -> Int
+
+pub fn truncate_to_width(String, Int) -> String
+
+// Errors
+
+// Types and methods
+pub struct Buffer {
+  area : @layout.Rect
+  cells : Array[Cell]
+}
+pub fn Buffer::clear(Self) -> Unit
+pub fn Buffer::copy_from(Self, Self) -> Unit
+pub fn Buffer::diff(Self, Self) -> Array[(Int, Int, Cell)]
+pub fn Buffer::get(Self, Int, Int) -> Cell
+pub fn Buffer::new(@layout.Rect) -> Self
+pub fn Buffer::set(Self, Int, Int, Cell) -> Unit
+pub fn Buffer::set_string(Self, Int, Int, String, @style.Style) -> Unit
+
+pub struct Cell {
+  symbol : String
+  style : @style.Style
+} derive(Eq)
+pub fn Cell::blank() -> Self
+pub fn Cell::new(String, @style.Style) -> Self
+
+// Type aliases
+
+// Traits
+

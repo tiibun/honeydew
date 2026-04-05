@@ -1,0 +1,108 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tiibun/honeytui/widget"
+
+import {
+  "tiibun/honeytui/buffer",
+  "tiibun/honeytui/layout",
+  "tiibun/honeytui/style",
+  "tiibun/honeytui/terminal",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Block {
+  title : String
+  borders : Borders
+  border_style : @style.Style
+  title_style : @style.Style
+}
+pub fn Block::border_style(Self, @style.Style) -> Self
+pub fn Block::borders(Self, Borders) -> Self
+pub fn Block::inner(Self, @layout.Rect) -> @layout.Rect
+pub fn Block::new() -> Self
+pub fn Block::title(Self, String) -> Self
+pub fn Block::title_style(Self, @style.Style) -> Self
+pub impl Widget for Block
+
+pub struct Borders {
+  top : Bool
+  right : Bool
+  bottom : Bool
+  left : Bool
+}
+pub fn Borders::all() -> Self
+pub fn Borders::none() -> Self
+
+pub struct Input {
+  value : String
+  cursor : Int
+  style : @style.Style
+  block : Block?
+  focused : Bool
+}
+pub fn Input::block(Self, Block) -> Self
+pub fn Input::focused(Self, Bool) -> Self
+pub fn Input::handle_key(Self, @terminal.Key) -> Self
+pub fn Input::new() -> Self
+pub fn Input::style(Self, @style.Style) -> Self
+pub fn Input::value(Self) -> String
+pub fn Input::with_value(Self, String) -> Self
+pub impl Widget for Input
+
+pub struct List {
+  items : Array[String]
+  selected : Int
+  offset : Int
+  style : @style.Style
+  selected_style : @style.Style
+  block : Block?
+}
+pub fn List::block(Self, Block) -> Self
+pub fn List::handle_key(Self, @terminal.Key) -> Self
+pub fn List::new(Array[String]) -> Self
+pub fn List::selected_index(Self) -> Int
+pub fn List::selected_item(Self) -> String?
+pub fn List::selected_style(Self, @style.Style) -> Self
+pub fn List::style(Self, @style.Style) -> Self
+pub impl Widget for List
+
+pub struct Paragraph {
+  text : String
+  style : @style.Style
+  block : Block?
+  scroll : Int
+}
+pub fn Paragraph::block(Self, Block) -> Self
+pub fn Paragraph::new(String) -> Self
+pub fn Paragraph::scroll(Self, Int) -> Self
+pub fn Paragraph::style(Self, @style.Style) -> Self
+pub impl Widget for Paragraph
+
+pub struct Table {
+  columns : Array[String]
+  rows : Array[Array[String]]
+  selected_row : Int
+  row_offset : Int
+  col_offset : Int
+  block : Block?
+  header_style : @style.Style
+  selected_style : @style.Style
+  style : @style.Style
+}
+pub fn Table::block(Self, Block) -> Self
+pub fn Table::handle_key(Self, @terminal.Key) -> Self
+pub fn Table::header_style(Self, @style.Style) -> Self
+pub fn Table::new(Array[String], Array[Array[String]]) -> Self
+pub fn Table::selected_style(Self, @style.Style) -> Self
+pub impl Widget for Table
+
+// Type aliases
+
+// Traits
+pub trait Widget {
+  render(Self, @layout.Rect, @buffer.Buffer) -> Unit
+}
+

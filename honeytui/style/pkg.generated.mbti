@@ -1,0 +1,70 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tiibun/honeytui/style"
+
+// Values
+pub let blink : Modifier
+
+pub let bold : Modifier
+
+pub let dim : Modifier
+
+pub let hidden : Modifier
+
+pub let italic : Modifier
+
+pub let reverse : Modifier
+
+pub let strikethrough : Modifier
+
+pub let underline : Modifier
+
+// Errors
+
+// Types and methods
+pub(all) enum Color {
+  Default
+  Black
+  Red
+  Green
+  Yellow
+  Blue
+  Magenta
+  Cyan
+  White
+  BrightBlack
+  BrightRed
+  BrightGreen
+  BrightYellow
+  BrightBlue
+  BrightMagenta
+  BrightCyan
+  BrightWhite
+  Ansi256(Int)
+  Rgb(Int, Int, Int)
+} derive(Eq, Show)
+pub fn Color::bg_code(Self) -> String
+pub fn Color::fg_code(Self) -> String
+
+pub struct Modifier {
+  bits : Int
+} derive(Eq, Show)
+pub fn Modifier::contains(Self, Self) -> Bool
+pub fn Modifier::empty() -> Self
+pub fn Modifier::or(Self, Self) -> Self
+pub fn Modifier::sgr_codes(Self) -> Array[String]
+
+pub struct Style {
+  fg : Color
+  bg : Color
+  modifiers : Modifier
+} derive(Eq, Show)
+pub fn Style::add_modifier(Self, Modifier) -> Self
+pub fn Style::bg(Self, Color) -> Self
+pub fn Style::default() -> Self
+pub fn Style::fg(Self, Color) -> Self
+pub fn Style::to_ansi(Self) -> String
+
+// Type aliases
+
+// Traits
+

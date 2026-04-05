@@ -1,0 +1,21 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tiibun/honeydew/ui"
+
+import {
+  "tiibun/honeydew/app",
+  "tiibun/honeytui",
+}
+
+// Values
+pub fn render_connect(@honeytui.Frame, @app.AppState) -> Unit
+
+pub fn render_main(@honeytui.Frame, @app.AppState) -> Unit
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+

@@ -23,7 +23,7 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     @style.Style::default().fg(@style.BrightBlack)
   }
   let schema_block = @widget.Block::new()
-    .title(" スキーマ ")
+    .title(" Schema ")
     .borders(@widget.Borders::all())
     .border_style(schema_border_style)
   let list = state.schema_list.block(schema_block)
@@ -36,7 +36,7 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     @style.Style::default().fg(@style.BrightBlack)
   }
   let editor_block = @widget.Block::new()
-    .title(" SQL (Enter=実行) ")
+    .title(" SQL (Enter=run) ")
     .borders(@widget.Borders::all())
     .border_style(editor_border_style)
   let sql_widget = state.sql_input.focused(editor_focused).block(editor_block)
@@ -50,11 +50,11 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   }
   let row_count = state.results.rows.length()
   let results_title = if row_count == 1 {
-    " 結果: 1行 "
+    " Results: 1 row "
   } else if row_count > 1 {
-    " 結果: \{row_count}行 "
+    " Results: \{row_count} rows "
   } else {
-    " 結果 "
+    " Results "
   }
   let results_block = @widget.Block::new()
     .title(results_title)

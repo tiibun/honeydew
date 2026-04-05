@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tiibun/honeydew/db/sqlite"
+
+import {
+  "tiibun/honeydew/db",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct SqliteConn {
+  id : Int
+}
+pub fn SqliteConn::close(Self) -> Unit
+pub fn SqliteConn::columns(Self, String) -> Result[Array[@db.ColumnInfo], String]
+pub fn SqliteConn::open(String) -> Result[Self, String]
+pub fn SqliteConn::query(Self, String) -> Result[@db.QueryResult, String]
+pub fn SqliteConn::tables(Self) -> Result[Array[String], String]
+
+// Type aliases
+
+// Traits
+

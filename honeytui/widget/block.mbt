@@ -128,12 +128,8 @@ pub impl Widget for Block with render(self, area, buf) {
   }
   // Title (drawn on the top border, left-aligned with one space padding)
   if self.title != "" && self.borders.top {
-    let max_len = area.width - 2
-    let t = if self.title.length() > max_len {
-      self.title[:max_len].to_string()
-    } else {
-      self.title
-    }
+    let max_cols = area.width - 2
+    let t = @buffer.truncate_to_width(self.title, max_cols)
     buf.set_string(x0 + 1, y0, t, self.title_style)
   }
 }

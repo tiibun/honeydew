@@ -1,0 +1,35 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tiibun/honeytui"
+
+import {
+  "tiibun/honeytui/buffer",
+  "tiibun/honeytui/layout",
+  "tiibun/honeytui/terminal",
+  "tiibun/honeytui/widget",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Frame {
+  buf : @buffer.Buffer
+}
+pub fn[W : @widget.Widget] Frame::render_widget(Self, W, @layout.Rect) -> Unit
+pub fn Frame::size(Self) -> @layout.Rect
+
+pub struct Terminal {
+  current : @buffer.Buffer
+  previous : @buffer.Buffer
+  raw : @terminal.RawMode
+}
+pub fn Terminal::draw(Self, (Frame) -> Unit) -> Unit
+pub fn Terminal::new() -> Result[Self, String]
+pub async fn Terminal::read_key(Self) -> @terminal.Key
+pub fn Terminal::restore(Self) -> Unit
+
+// Type aliases
+
+// Traits
+

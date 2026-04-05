@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tiibun/honeydew/db/mysql"
+
+import {
+  "tiibun/honeydew/db",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct MysqlConn {
+  id : Int
+}
+pub fn MysqlConn::close(Self) -> Unit
+pub fn MysqlConn::columns(Self, String) -> Result[Array[@db.ColumnInfo], String]
+pub fn MysqlConn::connect(String, Int, String, String, String) -> Result[Self, String]
+pub fn MysqlConn::query(Self, String) -> Result[@db.QueryResult, String]
+pub fn MysqlConn::tables(Self) -> Result[Array[String], String]
+
+// Type aliases
+
+// Traits
+

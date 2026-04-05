@@ -7,6 +7,7 @@ pub(all) enum Key {
   Delete
   Esc
   Tab
+  ShiftTab
   Up
   Down
   Left
@@ -55,6 +56,8 @@ pub fn Key::from_bytes(bytes : Array[Int]) -> Key {
       } else {
         Unknown(bytes)
       }
+    // ESC [ Z  => ShiftTab
+    [27, 91, 90] => ShiftTab
     // ESC [ A  => Up
     [27, 91, 65] => Up
     // ESC [ B  => Down

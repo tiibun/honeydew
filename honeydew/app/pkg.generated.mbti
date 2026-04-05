@@ -1,0 +1,80 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tiibun/honeydew/app"
+
+import {
+  "moonbitlang/async",
+  "tiibun/honeydew/db",
+  "tiibun/honeydew/db/mysql",
+  "tiibun/honeydew/db/postgres",
+  "tiibun/honeydew/db/sqlite",
+  "tiibun/honeytui/terminal",
+  "tiibun/honeytui/widget",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct AppState {
+  screen : Screen
+  conn : DbHandle?
+  conn_form : ConnForm
+  schema_items : Array[String]
+  schema_list : @widget.List
+  sql_input : @widget.Input
+  results : @widget.Table
+  focus : Panel
+  status : String
+  should_quit : Bool
+  group : @async.TaskGroup[Unit]
+}
+pub async fn AppState::do_connect(Self) -> Self
+pub fn AppState::new(@async.TaskGroup[Unit]) -> Self
+
+pub(all) struct ConnForm {
+  kind_idx : Int
+  host : @widget.Input
+  port : @widget.Input
+  database : @widget.Input
+  username : @widget.Input
+  password : @widget.Input
+  focus_idx : Int
+  error : String
+}
+pub fn ConnForm::field_count(Self) -> Int
+pub fn ConnForm::handle_key(Self, @terminal.Key) -> Self
+pub fn ConnForm::new() -> Self
+
+pub(all) enum DbHandle {
+  Sqlite(@sqlite.SqliteConn)
+  Postgres(@postgres.PgConn)
+  Mysql(@mysql.MysqlConn)
+}
+pub fn DbHandle::close(Self) -> Unit
+pub async fn DbHandle::columns(Self, String) -> Result[Array[@db.ColumnInfo], String]
+pub async fn DbHandle::query(Self, String) -> Result[@db.QueryResult, String]
+pub async fn DbHandle::tables(Self) -> Result[Array[String], String]
+
+pub(all) enum DbKind {
+  Sqlite
+  Postgres
+  Mysql
+}
+pub fn DbKind::label(Self) -> String
+
+pub(all) enum Panel {
+  Schema
+  Editor
+  Results
+} derive(Eq)
+
+pub(all) enum Screen {
+  Connect
+  Main
+} derive(Eq)
+
+// Type aliases
+
+// Traits
+

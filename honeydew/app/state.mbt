@@ -76,6 +76,10 @@ pub fn ConnForm::handle_key(self : ConnForm, key : @terminal.Key) -> ConnForm {
       let total = self.field_count() + 1
       { ..self, focus_idx: (self.focus_idx + 1) % total, error: "" }
     }
+    ShiftTab => {
+      let total = self.field_count() + 1
+      { ..self, focus_idx: (self.focus_idx + total - 1) % total, error: "" }
+    }
     Up | Down =>
       if self.focus_idx == 0 {
         let n = 3

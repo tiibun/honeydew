@@ -58,7 +58,12 @@ test "Key::from_bytes - navigation keys" {
 }
 
 ///|
+test "Key::from_bytes - shift-tab" {
+  assert_eq(@terminal.Key::from_bytes([27, 91, 90]), ShiftTab)
+}
+
+///|
 test "Key::from_bytes - unknown sequence" {
-  let k = @terminal.Key::from_bytes([27, 91, 90])
+  let k = @terminal.Key::from_bytes([27, 91, 255])
   assert_true(k is Unknown(_))
 }

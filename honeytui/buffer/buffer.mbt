@@ -59,7 +59,65 @@ pub fn Buffer::set(self : Buffer, x : Int, y : Int, cell : Cell) -> Unit {
 }
 
 ///|
-/// Write a styled string starting at (x, y), advancing x for each character.
+/// Returns the terminal display width of a character (1 or 2 columns).
+/// CJK ideographs, Hiragana, Katakana, Hangul, and fullwidth forms are 2.
+pub fn char_display_width(c : Char) -> Int {
+  let cp = c.to_int()
+  if (cp >= 0x1100 && cp <= 0x115F) ||
+    cp == 0x2329 ||
+    cp == 0x232A ||
+    (cp >= 0x2E80 && cp <= 0x303E) ||
+    (cp >= 0x3040 && cp <= 0x33FF) ||
+    (cp >= 0x3400 && cp <= 0x4DBF) ||
+    (cp >= 0x4E00 && cp <= 0xA4CF) ||
+    (cp >= 0xAC00 && cp <= 0xD7AF) ||
+    (cp >= 0xF900 && cp <= 0xFAFF) ||
+    (cp >= 0xFE10 && cp <= 0xFE1F) ||
+    (cp >= 0xFE30 && cp <= 0xFE6F) ||
+    (cp >= 0xFF00 && cp <= 0xFF60) ||
+    (cp >= 0xFFE0 && cp <= 0xFFE6) ||
+    (cp >= 0x1B000 && cp <= 0x1B0FF) ||
+    (cp >= 0x20000 && cp <= 0x2FFFD) ||
+    (cp >= 0x30000 && cp <= 0x3FFFD) {
+    2
+  } else {
+    1
+  }
+}
+
+///|
+/// Returns the terminal display width (columns) of a string.
+pub fn str_display_width(s : String) -> Int {
+  let mut w = 0
+  for c in s.iter() {
+    w = w + char_display_width(c)
+  }
+  w
+}
+
+///|
+/// Truncate `s` so its display width does not exceed `max_cols`.
+pub fn truncate_to_width(s : String, max_cols : Int) -> String {
+  let mut cols = 0
+  let mut end = 0
+  for c in s.iter() {
+    let w = char_display_width(c)
+    if cols + w > max_cols {
+      break
+    }
+    cols = cols + w
+    end = end + 1
+  }
+  if end >= s.length() {
+    s
+  } else {
+    s[:end].to_string()
+  }
+}
+
+///|
+/// Write a styled string starting at (x, y), advancing x by each char's display width.
+/// Wide characters (width=2) also blank their second cell to prevent stale content.
 /// Stops at the right edge of the buffer.
 pub fn Buffer::set_string(
   self : Buffer,
@@ -74,8 +132,12 @@ pub fn Buffer::set_string(
     if cur_x >= max_x {
       break
     }
+    let w = char_display_width(ch)
     self.set(cur_x, y, { symbol: ch.to_string(), style })
-    cur_x = cur_x + 1
+    if w == 2 && cur_x + 1 < max_x {
+      self.set(cur_x + 1, y, { symbol: " ", style })
+    }
+    cur_x = cur_x + w
   }
 }
 

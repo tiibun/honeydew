@@ -52,37 +52,37 @@ pub impl Widget for Paragraph with render(self, area, buf) {
 }
 
 ///|
-/// Split `text` into lines of at most `width` characters, respecting newlines.
+/// Split `text` into lines of at most `width` display columns, respecting newlines.
 fn wrap_text(text : String, width : Int) -> Array[String] {
   let result = []
   let src_lines = text.split("\n")
   for src_line in src_lines {
     let line = src_line.to_string()
-    if line.length() <= width {
+    if @buffer.str_display_width(line) <= width {
       result.push(line)
     } else {
       // Break long lines at word boundaries or hard-wrap
       let words = line.split(" ")
       let mut current = StringBuilder::new()
-      let mut current_len = 0
+      let mut current_cols = 0
       for word in words {
         let w = word.to_string()
-        let wlen = w.length()
-        if current_len == 0 {
+        let wcols = @buffer.str_display_width(w)
+        if current_cols == 0 {
           current.write_string(w)
-          current_len = wlen
-        } else if current_len + 1 + wlen <= width {
+          current_cols = wcols
+        } else if current_cols + 1 + wcols <= width {
           current.write_char(' ')
           current.write_string(w)
-          current_len = current_len + 1 + wlen
+          current_cols = current_cols + 1 + wcols
         } else {
           result.push(current.to_string())
           current = StringBuilder::new()
           current.write_string(w)
-          current_len = wlen
+          current_cols = wcols
         }
       }
-      if current_len > 0 {
+      if current_cols > 0 {
         result.push(current.to_string())
       }
     }
