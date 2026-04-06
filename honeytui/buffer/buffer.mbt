@@ -135,7 +135,9 @@ pub fn Buffer::set_string(
     let w = char_display_width(ch)
     self.set(cur_x, y, { symbol: ch.to_string(), style })
     if w == 2 && cur_x + 1 < max_x {
-      self.set(cur_x + 1, y, { symbol: " ", style })
+      // Mark the right half of a wide char as a placeholder (empty symbol).
+      // flush_diff skips these to avoid overwriting the wide glyph.
+      self.set(cur_x + 1, y, { symbol: "", style })
     }
     cur_x = cur_x + w
   }

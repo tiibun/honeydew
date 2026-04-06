@@ -85,6 +85,10 @@ fn Terminal::flush_diff(self : Terminal) -> Unit {
   let out = StringBuilder::new()
   for change in changes {
     let (x, y, cell) = change
+    // Skip placeholder cells (right half of a wide character).
+    if cell.symbol == "" {
+      continue
+    }
     out.write_string(@terminal.cursor_goto(x, y))
     out.write_string(cell.style.to_ansi())
     out.write_string(cell.symbol)
