@@ -57,7 +57,8 @@ pub fn Layout::split(self : Layout, area : Rect) -> Array[Rect] {
   if n == 0 {
     return []
   }
-  // First pass: resolve fixed and percentage constraints
+  // First pass: resolve fixed and percentage constraints.
+  // Min(v) is treated as a minimum (v), and stretches to fill leftover space.
   let sizes : Array[Int] = Array::make(n, 0)
   let mut remaining = total
   for i = 0; i < n; i = i + 1 {
@@ -70,9 +71,20 @@ pub fn Layout::split(self : Layout, area : Rect) -> Array[Rect] {
     sizes[i] = size
     remaining = remaining - size
   }
-  // Distribute any leftover to the last segment
+  // Distribute leftover to the first Min constraint so it expands to fill.
+  // If no Min exists, fall back to the last segment (handles Percentage rounding).
   if remaining > 0 {
-    sizes[n - 1] = sizes[n - 1] + remaining
+    let mut give_to = n - 1
+    for i = 0; i < n; i = i + 1 {
+      match self.constraints[i] {
+        Min(_) => {
+          give_to = i
+          break
+        }
+        _ => ()
+      }
+    }
+    sizes[give_to] = sizes[give_to] + remaining
   }
   // Build rects
   let rects = []
