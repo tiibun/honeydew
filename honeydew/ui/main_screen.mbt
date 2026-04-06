@@ -2,11 +2,23 @@
 /// Render the main 3-pane screen: schema browser | SQL editor | results.
 pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   let area = frame.size()
+  render_menu_bar(frame, state)
+  // Content area starts below the 1-row menu bar
+  let content = @layout.Rect::new(
+    area.x,
+    area.y + 1,
+    area.width,
+    if area.height > 1 {
+      area.height - 1
+    } else {
+      0
+    },
+  )
   // Split horizontally: schema (30%) | right (70%)
   let cols = @layout.Layout::new(@layout.Horizontal, [
     @layout.Percentage(28),
     @layout.Percentage(72),
-  ]).split(area)
+  ]).split(content)
   // Right side: editor (35%) | results (65%)
   let right_rows = @layout.Layout::new(@layout.Vertical, [
     @layout.Percentage(35),
@@ -62,8 +74,7 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     .border_style(results_border_style)
   let tbl = state.results.block(results_block)
   frame.render_widget(tbl, results_area)
-  // ---- Status bar ----
-  // Rendered as a 1-line Paragraph at the bottom of the screen
-  // (already included in the layout since there's no explicit status row).
-  // Instead, embed status in results title — already done above.
+  if state.show_help {
+    render_help_overlay(frame, state)
+  }
 }

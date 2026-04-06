@@ -27,6 +27,7 @@ pub(all) struct AppState {
   focus : Panel
   status : String
   should_quit : Bool
+  show_help : Bool
   group : @async.TaskGroup[Unit]
 }
 pub async fn AppState::do_connect(Self) -> Self

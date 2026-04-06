@@ -199,6 +199,7 @@ pub(all) struct AppState {
   focus : Panel
   status : String
   should_quit : Bool
+  show_help : Bool
   group : @async.TaskGroup[Unit]
 }
 
@@ -215,6 +216,7 @@ pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
     focus: Editor,
     status: "Tab=切替  Enter=接続  q=終了",
     should_quit: false,
+    show_help: false,
     group,
   }
 }

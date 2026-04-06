@@ -2,16 +2,28 @@
 /// Render the connection form screen.
 pub fn render_connect(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   let area = frame.size()
-  // Centre a 60×14 box
+  render_menu_bar(frame, state)
+  // Content area starts below the 1-row menu bar
+  let content = @layout.Rect::new(
+    area.x,
+    area.y + 1,
+    area.width,
+    if area.height > 1 {
+      area.height - 1
+    } else {
+      0
+    },
+  )
+  // Centre a 60×14 box inside the content area
   let box_w = 60
   let box_h = 14
-  let bx = (area.width - box_w) / 2
-  let by = (area.height - box_h) / 2
+  let bx = (content.width - box_w) / 2
+  let by = (content.height - box_h) / 2
   let bx2 = if bx > 0 { bx } else { 0 }
   let by2 = if by > 0 { by } else { 0 }
-  let bw = if box_w < area.width { box_w } else { area.width }
-  let bh = if box_h < area.height { box_h } else { area.height }
-  let box_area = @layout.Rect::new(area.x + bx2, area.y + by2, bw, bh)
+  let bw = if box_w < content.width { box_w } else { content.width }
+  let bh = if box_h < content.height { box_h } else { content.height }
+  let box_area = @layout.Rect::new(content.x + bx2, content.y + by2, bw, bh)
   let form = state.conn_form
   let kind_label = @app.DbKind::label(db_kind(form.kind_idx))
   let title = " honeydew — Connect to \{kind_label} "
@@ -95,6 +107,9 @@ pub fn render_connect(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     @widget.Paragraph::new(bottom_text).style(bottom_style),
     rows[8],
   )
+  if state.show_help {
+    render_help_overlay(frame, state)
+  }
 }
 
 ///|

@@ -30,8 +30,13 @@ async fn handle_key(
   state : @app.AppState,
   key : @terminal.Key,
 ) -> @app.AppState {
+  // Close help overlay on any key when it is open (? or Esc close it, others are swallowed)
+  if state.show_help {
+    return { ..state, show_help: false }
+  }
   match key {
     CtrlC | CtrlQ => { ..state, should_quit: true }
+    Char('?') => { ..state, show_help: true }
     Char('q') =>
       if state.screen == @app.Connect {
         { ..state, should_quit: true }

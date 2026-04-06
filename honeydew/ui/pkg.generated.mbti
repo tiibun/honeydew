@@ -9,7 +9,11 @@ import {
 // Values
 pub fn render_connect(@honeytui.Frame, @app.AppState) -> Unit
 
+pub fn render_help_overlay(@honeytui.Frame, @app.AppState) -> Unit
+
 pub fn render_main(@honeytui.Frame, @app.AppState) -> Unit
+
+pub fn render_menu_bar(@honeytui.Frame, @app.AppState) -> Unit
 
 // Errors
 
