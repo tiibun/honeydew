@@ -59,8 +59,13 @@ pub fn Key::from_bytes(bytes : Array[Int]) -> Key {
       } else {
         Unknown(bytes)
       }
-    // ESC [ 1 3 ; 5 u  => Ctrl+Enter (kitty keyboard protocol)
-    [27, 91, 49, 51, 59, 53, 117] => CtrlEnter
+    // Ctrl+Enter — multiple encodings used by different terminals:
+    //   ESC [13;5u       kitty keyboard protocol (modifier after keycode)
+    //   ESC [5;13~       some terminals (modifier before keycode, ~ terminator)
+    //   ESC [27;5;13~    XTerm modifyOtherKeys=2
+    [27, 91, 49, 51, 59, 53, 117] => CtrlEnter    // ESC [13;5u
+    [27, 91, 53, 59, 49, 51, 126] => CtrlEnter    // ESC [5;13~
+    [27, 91, 50, 55, 59, 53, 59, 49, 51, 126] => CtrlEnter // ESC [27;5;13~
     // ESC [ Z  => ShiftTab
     [27, 91, 90] => ShiftTab
     // ESC [ A  => Up

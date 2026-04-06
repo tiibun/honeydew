@@ -129,13 +129,26 @@ pub async fn read_key() -> Key {
         }
         return Unknown([27, b1, b2])
       }
-      // ESC [ digit ~ sequences (e.g. PageUp/PageDown/Delete)
-      if b2 >= 48 && b2 <= 57 {
-        let b3 = read_byte()
-        Key::from_bytes([27, b1, b2, if b3 < 0 { 0 } else { b3 }])
-      } else {
-        Key::from_bytes([27, b1, b2])
+      // Generic CSI sequence: read parameter/intermediate bytes until
+      // a final byte (0x40–0x7E) terminates the sequence.
+      // This handles sequences of any length (e.g. ESC [13;5u, ESC [27;5;13~).
+      let seq : Array[Int] = [27, b1, b2]
+      if b2 < 0x40 || b2 > 0x7E {
+        // b2 is not a final byte — keep reading
+        let mut done = false
+        while !done {
+          let bn = read_byte()
+          if bn < 0 {
+            done = true
+          } else {
+            seq.push(bn)
+            if bn >= 0x40 && bn <= 0x7E {
+              done = true
+            }
+          }
+        }
       }
+      Key::from_bytes(seq)
     }) {
     None => Esc // timeout → bare ESC
     Some(key) => key
