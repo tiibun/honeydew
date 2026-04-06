@@ -22,7 +22,7 @@ pub(all) struct AppState {
   conn_form : ConnForm
   schema_items : Array[String]
   schema_list : @widget.List
-  sql_input : @widget.Input
+  sql_input : @widget.TextArea
   results : @widget.Table
   focus : Panel
   status : String

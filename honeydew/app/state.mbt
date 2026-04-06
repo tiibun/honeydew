@@ -194,7 +194,7 @@ pub(all) struct AppState {
   conn_form : ConnForm
   schema_items : Array[String]
   schema_list : @widget.List
-  sql_input : @widget.Input
+  sql_input : @widget.TextArea
   results : @widget.Table
   focus : Panel
   status : String
@@ -211,7 +211,7 @@ pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
     conn_form: ConnForm::new(),
     schema_items: [],
     schema_list: @widget.List::new([]),
-    sql_input: @widget.Input::new(),
+    sql_input: @widget.TextArea::new(),
     results: @widget.Table::new([], []),
     focus: Editor,
     status: "Tab=切替  Enter=接続  q=終了",
@@ -277,7 +277,7 @@ pub async fn AppState::do_connect(self : AppState) -> AppState {
         schema_items: tables,
         schema_list: list,
         focus: Editor,
-        status: "Tab=パネル切替  Enter=実行  q=終了",
+        status: "Tab=パネル切替  Ctrl+Enter=実行  q=終了",
       }
     }
     Err(msg) => { ..self, conn_form: { ..form, error: msg } }

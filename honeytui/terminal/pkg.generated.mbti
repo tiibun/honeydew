@@ -53,6 +53,7 @@ pub(all) enum Key {
   CtrlQ
   CtrlS
   CtrlZ
+  CtrlEnter
   MouseClick(Int, Int)
   Unknown(Array[Int])
 } derive(Eq, Show)

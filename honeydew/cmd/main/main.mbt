@@ -46,11 +46,16 @@ async fn handle_key(
     Enter =>
       match state.screen {
         @app.Connect => state.do_connect()
+        @app.Main => dispatch(state, key) // Enter = newline in editor
+      }
+    CtrlEnter =>
+      match state.screen {
+        @app.Connect => state
         @app.Main =>
           if state.focus == @app.Editor {
-            run_query(state)
+            run_query_at_cursor(state)
           } else {
-            dispatch(state, key)
+            state
           }
       }
     Tab =>
@@ -94,9 +99,28 @@ fn dispatch(state : @app.AppState, key : @terminal.Key) -> @app.AppState {
       match state.focus {
         @app.Schema =>
           { ..state, schema_list: state.schema_list.handle_key(key) }
-        @app.Editor => { ..state, sql_input: state.sql_input.handle_key(key) }
+        @app.Editor => {
+          let new_input = state.sql_input.handle_key(key)
+          let highlighted = apply_highlight(new_input)
+          { ..state, sql_input: highlighted }
+        }
         @app.Results => { ..state, results: state.results.handle_key(key) }
       }
+  }
+}
+
+///|
+/// Recompute and apply the current-statement highlight on a TextArea.
+fn apply_highlight(ta : @widget.TextArea) -> @widget.TextArea {
+  let text = ta.value()
+  let pos = ta.cursor_pos()
+  let (_, start_char, end_char) = current_statement(text, pos)
+  if start_char == end_char {
+    ta.clear_highlight()
+  } else {
+    let start_line = char_pos_to_line(text, start_char)
+    let end_line = char_pos_to_line(text, end_char - 1)
+    ta.with_highlight(start_line, end_line)
   }
 }
 
@@ -132,15 +156,18 @@ fn panel_at(cols : Int, rows : Int, mx : Int, my : Int) -> @app.Panel? {
 }
 
 ///|
-async fn run_query(state : @app.AppState) -> @app.AppState {
-  let sql = state.sql_input.value()
-  if sql == "" {
+/// Execute the SQL statement at the cursor position.
+async fn run_query_at_cursor(state : @app.AppState) -> @app.AppState {
+  let text = state.sql_input.value()
+  let pos = state.sql_input.cursor_pos()
+  let (stmt, _, _) = current_statement(text, pos)
+  if stmt == "" {
     return state
   }
   match state.conn {
     None => { ..state, status: "エラー: 接続されていません" }
     Some(conn) =>
-      match conn.query(sql) {
+      match conn.query(stmt) {
         Ok(result) => {
           let tbl = @widget.Table::new(result.columns, result.rows)
           let n = result.rows.length()
@@ -150,4 +177,82 @@ async fn run_query(state : @app.AppState) -> @app.AppState {
         Err(msg) => { ..state, status: "エラー: \{msg}" }
       }
   }
+}
+
+///|
+/// Find the `;`-delimited SQL statement that contains `cursor_pos`.
+/// Returns `(statement, start_char, end_char)` where `end_char` is exclusive.
+/// Ignores `;` inside single-quoted string literals.
+/// Leading/trailing whitespace is stripped from the returned statement.
+fn current_statement(text : String, cursor_pos : Int) -> (String, Int, Int) {
+  let len = text.length()
+  if len == 0 {
+    return ("", 0, 0)
+  }
+  // Collect statement boundaries (positions just after each ';')
+  let boundaries : Array[Int] = [0]
+  let mut in_quote = false
+  for i = 0; i < len; i = i + 1 {
+    let c = text[i]
+    if c == '\'' {
+      in_quote = !in_quote
+    } else if c == ';' && !in_quote {
+      boundaries.push(i + 1)
+    }
+  }
+  boundaries.push(len)
+  // Find which segment contains cursor_pos
+  let mut seg_start = 0
+  let mut seg_end = len
+  for i = 0; i + 1 < boundaries.length(); i = i + 1 {
+    let s = boundaries[i]
+    let e = boundaries[i + 1]
+    if cursor_pos >= s && cursor_pos <= e {
+      seg_start = s
+      seg_end = e
+      break
+    }
+  }
+  // Strip the trailing ';' from segment end if present
+  let raw_end = if seg_end < len && text[seg_end - 1] == ';' {
+    seg_end - 1
+  } else {
+    seg_end
+  }
+  let raw = text[seg_start:raw_end].to_string()
+  // Trim leading/trailing whitespace
+  let trimmed = raw.trim().to_string()
+  if trimmed == "" {
+    return ("", seg_start, seg_start)
+  }
+  // Compute trimmed start/end within the original text
+  let trim_start = seg_start + leading_spaces(raw)
+  let trim_end = trim_start + trimmed.length()
+  (trimmed, trim_start, trim_end)
+}
+
+///|
+/// Count leading whitespace characters in a string.
+fn leading_spaces(s : String) -> Int {
+  let mut i = 0
+  for c in s.iter() {
+    if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+      i = i + 1
+    } else {
+      break
+    }
+  }
+  i
+}
+
+///|
+/// Convert an absolute character position in `text` to a 0-indexed line number.
+fn char_pos_to_line(text : String, char_pos : Int) -> Int {
+  let mut line = 0
+  for i = 0; i < char_pos && i < text.length(); i = i + 1 {
+    if text[i] == '\n' {
+      line = line + 1
+    }
+  }
+  line
 }

@@ -99,6 +99,28 @@ pub fn Table::new(Array[String], Array[Array[String]]) -> Self
 pub fn Table::selected_style(Self, @style.Style) -> Self
 pub impl Widget for Table
 
+pub struct TextArea {
+  lines : Array[String]
+  cursor_line : Int
+  cursor_col : Int
+  scroll_top : Int
+  highlight : (Int, Int)?
+  focused : Bool
+  style : @style.Style
+  block : Block?
+}
+pub fn TextArea::block(Self, Block) -> Self
+pub fn TextArea::clear_highlight(Self) -> Self
+pub fn TextArea::cursor_pos(Self) -> Int
+pub fn TextArea::focused(Self, Bool) -> Self
+pub fn TextArea::handle_key(Self, @terminal.Key) -> Self
+pub fn TextArea::new() -> Self
+pub fn TextArea::style(Self, @style.Style) -> Self
+pub fn TextArea::value(Self) -> String
+pub fn TextArea::with_highlight(Self, Int, Int) -> Self
+pub fn TextArea::with_value(Self, String) -> Self
+pub impl Widget for TextArea
+
 // Type aliases
 
 // Traits
