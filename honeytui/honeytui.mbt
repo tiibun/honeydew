@@ -49,6 +49,7 @@ pub fn Terminal::new() -> Result[Terminal, String] {
   @terminal.write(@terminal.enter_alternate_screen())
   @terminal.write(@terminal.cursor_hide())
   @terminal.write(@terminal.clear_all())
+  @terminal.write(@terminal.mouse_on())
   Ok({
     current: @buffer.Buffer::new(area),
     previous: @buffer.Buffer::new(area),
@@ -59,6 +60,7 @@ pub fn Terminal::new() -> Result[Terminal, String] {
 ///|
 /// Restore the terminal to its original state.
 pub fn Terminal::restore(self : Terminal) -> Unit {
+  @terminal.write(@terminal.mouse_off())
   @terminal.write(@terminal.cursor_show())
   @terminal.write(@terminal.leave_alternate_screen())
   let _ = self.raw.exit()

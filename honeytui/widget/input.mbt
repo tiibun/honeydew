@@ -99,17 +99,30 @@ pub impl Widget for Input with render(self, area, buf) {
   if inner.width == 0 || inner.height == 0 {
     return
   }
-  // Determine the visible window of the value (scroll so cursor is in view)
   let width = inner.width
-  let vlen = self.value.length()
-  let scroll = if self.cursor >= width { self.cursor - width + 1 } else { 0 }
-  let visible = if vlen > scroll { self.value[scroll:].to_string() } else { "" }
+  // Compute display column of the cursor (in display columns, not code units).
+  let cursor_cols = @buffer.str_display_width(
+    self.value[:self.cursor].to_string(),
+  )
+  // Scroll so that cursor is always visible (in display columns).
+  let scroll_cols = if cursor_cols >= width {
+    cursor_cols - width + 1
+  } else {
+    0
+  }
+  // Convert scroll_cols (display cols) to a char index for slicing.
+  let scroll = display_to_char_index(self.value, scroll_cols)
+  let visible = if self.value.length() > scroll {
+    self.value[scroll:].to_string()
+  } else {
+    ""
+  }
   buf.set_string(inner.x, inner.y, visible, self.style)
   // Render cursor highlight when focused
   if self.focused {
-    let cx = inner.x + self.cursor - scroll
+    let cx = inner.x + cursor_cols - scroll_cols
     if cx >= inner.x && cx < inner.x + inner.width {
-      let cursor_char = if self.cursor < vlen {
+      let cursor_char = if self.cursor < self.value.length() {
         self.value[self.cursor:self.cursor + 1].to_string()
       } else {
         " "
@@ -120,4 +133,20 @@ pub impl Widget for Input with render(self, area, buf) {
       buf.set(cx, inner.y, @buffer.Cell::new(cursor_char, cursor_style))
     }
   }
+}
+
+///|
+/// Return the char index in `s` at which the cumulative display width
+/// first reaches or exceeds `display_cols`. Used for scroll offset conversion.
+fn display_to_char_index(s : String, display_cols : Int) -> Int {
+  let mut cols = 0
+  let mut idx = 0
+  for c in s.iter() {
+    if cols >= display_cols {
+      break
+    }
+    cols = cols + @buffer.char_display_width(c)
+    idx = idx + 1
+  }
+  idx
 }

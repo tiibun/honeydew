@@ -22,6 +22,8 @@ pub(all) enum Key {
   CtrlQ
   CtrlS
   CtrlZ
+  /// Left mouse button click at (col, row), 1-indexed.
+  MouseClick(Int, Int)
   Unknown(Array[Int])
 } derive(Eq, Show)
 

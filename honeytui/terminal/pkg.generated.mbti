@@ -18,6 +18,10 @@ pub fn get_size() -> Result[(Int, Int), String]
 
 pub fn leave_alternate_screen() -> String
 
+pub fn mouse_off() -> String
+
+pub fn mouse_on() -> String
+
 pub async fn read_key() -> Key
 
 pub fn reset() -> String
@@ -49,6 +53,7 @@ pub(all) enum Key {
   CtrlQ
   CtrlS
   CtrlZ
+  MouseClick(Int, Int)
   Unknown(Array[Int])
 } derive(Eq, Show)
 pub fn Key::from_bytes(Array[Int]) -> Self

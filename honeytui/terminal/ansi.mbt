@@ -45,6 +45,18 @@ pub fn enter_alternate_screen() -> String {
 }
 
 ///|
+/// Enable X10 mouse button reporting.
+pub fn mouse_on() -> String {
+  "\u001b[?1000h"
+}
+
+///|
+/// Disable mouse reporting.
+pub fn mouse_off() -> String {
+  "\u001b[?1000l"
+}
+
+///|
 /// Leave the alternate screen buffer.
 pub fn leave_alternate_screen() -> String {
   "\u001b[?1049l"

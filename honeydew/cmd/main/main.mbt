@@ -30,7 +30,7 @@ async fn handle_key(
   state : @app.AppState,
   key : @terminal.Key,
 ) -> @app.AppState {
-  // Close help overlay on any key when it is open (? or Esc close it, others are swallowed)
+  // Close help overlay on any key when it is open
   if state.show_help {
     return { ..state, show_help: false }
   }
@@ -57,6 +57,24 @@ async fn handle_key(
       match state.screen {
         @app.Connect => { ..state, conn_form: state.conn_form.handle_key(key) }
         @app.Main => cycle_focus(state)
+      }
+    ShiftTab =>
+      match state.screen {
+        @app.Connect => { ..state, conn_form: state.conn_form.handle_key(key) }
+        @app.Main => cycle_focus_reverse(state)
+      }
+    MouseClick(mx, my) =>
+      if state.screen == @app.Main {
+        let (cols, rows) = match @terminal.get_size() {
+          Ok(s) => s
+          Err(_) => (80, 24)
+        }
+        match panel_at(cols, rows, mx, my) {
+          Some(panel) => { ..state, focus: panel }
+          None => state
+        }
+      } else {
+        state
       }
     _ => dispatch(state, key)
   }
@@ -87,19 +105,55 @@ fn cycle_focus(state : @app.AppState) -> @app.AppState {
 }
 
 ///|
+fn cycle_focus_reverse(state : @app.AppState) -> @app.AppState {
+  let next = match state.focus {
+    @app.Schema => @app.Results
+    @app.Editor => @app.Schema
+    @app.Results => @app.Editor
+  }
+  { ..state, focus: next }
+}
+
+///|
+/// Given terminal size and mouse click position, return which Panel was clicked.
+/// Matches the layout computed by render_main:
+///   row 1           = menu bar
+///   row 2..rows-1   = main area
+///   row rows        = status bar
+///   col 1..schema_w = Schema, else right pane
+///   right top 35%   = Editor, bottom 65% = Results
+fn panel_at(cols : Int, rows : Int, mx : Int, my : Int) -> @app.Panel? {
+  if my == 1 || my == rows {
+    return None // menu bar or status bar
+  }
+  let content_h = rows - 2 // rows available for main area
+  let schema_w = cols * 28 / 100
+  if mx <= schema_w {
+    return Some(@app.Schema)
+  }
+  // Right pane: content rows start at row 2
+  let editor_h = content_h * 35 / 100
+  if my < 2 + editor_h {
+    return Some(@app.Editor)
+  }
+  Some(@app.Results)
+}
+
+///|
 async fn run_query(state : @app.AppState) -> @app.AppState {
   let sql = state.sql_input.value()
   if sql == "" {
     return state
   }
   match state.conn {
-    None => { ..state, status: "接続されていません" }
+    None => { ..state, status: "エラー: 接続されていません" }
     Some(conn) =>
       match conn.query(sql) {
         Ok(result) => {
           let tbl = @widget.Table::new(result.columns, result.rows)
           let n = result.rows.length()
-          { ..state, results: tbl, status: "\{n}行取得" }
+          let msg = if n == 1 { "1 行取得" } else { "\{n} 行取得" }
+          { ..state, results: tbl, status: msg }
         }
         Err(msg) => { ..state, status: "エラー: \{msg}" }
       }

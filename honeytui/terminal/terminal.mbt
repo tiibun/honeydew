@@ -54,6 +54,49 @@ pub async fn read_key() -> Key {
   if b0 < 0 {
     return Unknown([])
   }
+  // Multi-byte UTF-8: decode continuation bytes immediately (no timeout needed).
+  if b0 >= 0xC2 && b0 <= 0xDF {
+    // 2-byte sequence
+    let b1 = read_byte()
+    if b1 < 0 {
+      return Unknown([b0])
+    }
+    let cp = ((b0 & 0x1F) << 6) | (b1 & 0x3F)
+    return Char(Int::unsafe_to_char(cp))
+  }
+  if b0 >= 0xE0 && b0 <= 0xEF {
+    // 3-byte sequence (covers all Japanese hiragana/katakana/kanji)
+    let b1 = read_byte()
+    if b1 < 0 {
+      return Unknown([b0])
+    }
+    let b2 = read_byte()
+    if b2 < 0 {
+      return Unknown([b0, b1])
+    }
+    let cp = ((b0 & 0x0F) << 12) | ((b1 & 0x3F) << 6) | (b2 & 0x3F)
+    return Char(Int::unsafe_to_char(cp))
+  }
+  if b0 >= 0xF0 && b0 <= 0xF7 {
+    // 4-byte sequence (emoji, rare CJK extension)
+    let b1 = read_byte()
+    if b1 < 0 {
+      return Unknown([b0])
+    }
+    let b2 = read_byte()
+    if b2 < 0 {
+      return Unknown([b0, b1])
+    }
+    let b3 = read_byte()
+    if b3 < 0 {
+      return Unknown([b0, b1, b2])
+    }
+    let cp = ((b0 & 0x07) << 18) |
+      ((b1 & 0x3F) << 12) |
+      ((b2 & 0x3F) << 6) |
+      (b3 & 0x3F)
+    return Char(Int::unsafe_to_char(cp))
+  }
   if b0 != 27 {
     return Key::from_bytes([b0])
   }
@@ -70,6 +113,21 @@ pub async fn read_key() -> Key {
       let b2 = read_byte()
       if b2 < 0 {
         return Unknown([27, b1])
+      }
+      // X10 mouse report: ESC [ M <b> <x> <y>
+      if b2 == 77 {
+        let mb = read_byte()
+        let mx = read_byte()
+        let my = read_byte()
+        if mb < 0 || mx < 0 || my < 0 {
+          return Unknown([27, b1, b2])
+        }
+        // btn & 3: 0=left press, 3=release; ignore non-left-press events
+        let btn = mb - 32
+        if (btn & 3) == 0 {
+          return MouseClick(mx - 32, my - 32)
+        }
+        return Unknown([27, b1, b2])
       }
       // ESC [ digit ~ sequences (e.g. PageUp/PageDown/Delete)
       if b2 >= 48 && b2 <= 57 {

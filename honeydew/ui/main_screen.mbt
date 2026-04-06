@@ -14,11 +14,18 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
       0
     },
   )
-  // Split horizontally: schema (30%) | right (70%)
+  // Split content: main area (fills) | 1-row status bar at bottom
+  let content_rows = @layout.Layout::new(@layout.Vertical, [
+    @layout.Min(0),
+    @layout.Length(1),
+  ]).split(content)
+  let main_area = content_rows[0]
+  let status_area = content_rows[1]
+  // Split main area horizontally: schema (28%) | right (72%)
   let cols = @layout.Layout::new(@layout.Horizontal, [
     @layout.Percentage(28),
     @layout.Percentage(72),
-  ]).split(content)
+  ]).split(main_area)
   // Right side: editor (35%) | results (65%)
   let right_rows = @layout.Layout::new(@layout.Vertical, [
     @layout.Percentage(35),
@@ -74,6 +81,16 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     .border_style(results_border_style)
   let tbl = state.results.block(results_block)
   frame.render_widget(tbl, results_area)
+  // ---- Status bar ----
+  let status_style = if state.status.contains("エラー") {
+    @style.Style::default().fg(@style.Red).bg(@style.Black)
+  } else {
+    @style.Style::default().fg(@style.White).bg(@style.Black)
+  }
+  frame.render_widget(
+    @widget.Paragraph::new(" \{state.status}").style(status_style),
+    status_area,
+  )
   if state.show_help {
     render_help_overlay(frame, state)
   }
