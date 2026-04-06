@@ -56,12 +56,18 @@ async fn handle_key(
     Tab =>
       match state.screen {
         @app.Connect => { ..state, conn_form: state.conn_form.handle_key(key) }
-        @app.Main => cycle_focus(state)
+        @app.Main => {
+          let next = panel_ring().set(state.focus).next().current()
+          { ..state, focus: next }
+        }
       }
     ShiftTab =>
       match state.screen {
         @app.Connect => { ..state, conn_form: state.conn_form.handle_key(key) }
-        @app.Main => cycle_focus_reverse(state)
+        @app.Main => {
+          let next = panel_ring().set(state.focus).prev().current()
+          { ..state, focus: next }
+        }
       }
     MouseClick(mx, my) =>
       if state.screen == @app.Main {
@@ -95,23 +101,9 @@ fn dispatch(state : @app.AppState, key : @terminal.Key) -> @app.AppState {
 }
 
 ///|
-fn cycle_focus(state : @app.AppState) -> @app.AppState {
-  let next = match state.focus {
-    @app.Schema => @app.Editor
-    @app.Editor => @app.Results
-    @app.Results => @app.Schema
-  }
-  { ..state, focus: next }
-}
-
-///|
-fn cycle_focus_reverse(state : @app.AppState) -> @app.AppState {
-  let next = match state.focus {
-    @app.Schema => @app.Results
-    @app.Editor => @app.Schema
-    @app.Results => @app.Editor
-  }
-  { ..state, focus: next }
+/// The canonical focus order for the main screen panels.
+fn panel_ring() -> @honeytui.FocusRing[@app.Panel] {
+  @honeytui.FocusRing::new([@app.Schema, @app.Editor, @app.Results])
 }
 
 ///|

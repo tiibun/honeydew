@@ -13,6 +13,16 @@ import {
 // Errors
 
 // Types and methods
+pub struct FocusRing[T] {
+  items : Array[T]
+  current_idx : Int
+}
+pub fn[T] FocusRing::current(Self[T]) -> T
+pub fn[T] FocusRing::new(Array[T]) -> Self[T]
+pub fn[T] FocusRing::next(Self[T]) -> Self[T]
+pub fn[T] FocusRing::prev(Self[T]) -> Self[T]
+pub fn[T : Eq] FocusRing::set(Self[T], T) -> Self[T]
+
 pub struct Frame {
   buf : @buffer.Buffer
 }
