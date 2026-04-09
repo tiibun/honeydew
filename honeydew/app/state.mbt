@@ -248,7 +248,7 @@ pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
     sql_input: @widget.TextArea::new(),
     results: @widget.Table::new([], []),
     focus: Editor,
-    status: "Tab=switch  Enter=connect  Ctrl+S=save  d=delete  q=quit",
+    status: connect_status(if profiles.length() > 0 { ProfileList } else { Form }),
     should_quit: false,
     show_help: false,
     group,
@@ -308,7 +308,7 @@ pub fn AppState::load_selected_profile(self : AppState) -> AppState {
     focus_idx: 2,
     error: "",
   }
-  { ..self, conn_form: new_form, conn_panel: Form }
+  { ..self, conn_form: new_form, conn_panel: Form, status: connect_status(Form) }
 }
 
 ///|
@@ -448,10 +448,19 @@ pub async fn AppState::do_connect(self : AppState) -> AppState {
         schema_items: tables,
         schema_list: list,
         focus: Editor,
-        status: "Tab=switch panel  Ctrl+Enter=run  q=quit",
+        status: "Tab=switch panel  Ctrl+Enter=run  Ctrl+Q=quit",
       }
     }
     Err(msg) => { ..self, conn_form: { ..form, error: msg } }
+  }
+}
+
+///|
+/// Return the status bar hint string for the Connect screen.
+pub fn connect_status(panel : ConnPanel) -> String {
+  match panel {
+    ProfileList => "Tab=switch  Enter=load  Ctrl+S=save  d=delete  q=quit"
+    Form => "Tab=switch  Enter=connect  Ctrl+S=save  Ctrl+Q=quit"
   }
 }
 

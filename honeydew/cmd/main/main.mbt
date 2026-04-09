@@ -81,11 +81,16 @@ async fn handle_key(
                 ..state,
                 conn_panel: @app.Form,
                 conn_form: { ..state.conn_form, focus_idx: 0 },
+                status: @app.connect_status(@app.Form),
               }
             @app.Form => {
               let total = state.conn_form.total_fields()
               if state.conn_form.focus_idx >= total - 1 {
-                { ..state, conn_panel: @app.ProfileList }
+                {
+                  ..state,
+                  conn_panel: @app.ProfileList,
+                  status: @app.connect_status(@app.ProfileList),
+                }
               } else {
                 { ..state, conn_form: state.conn_form.handle_key(key) }
               }
@@ -108,10 +113,15 @@ async fn handle_key(
                   ..state.conn_form,
                   focus_idx: state.conn_form.total_fields() - 1,
                 },
+                status: @app.connect_status(@app.Form),
               }
             @app.Form =>
               if state.conn_form.focus_idx == 0 {
-                { ..state, conn_panel: @app.ProfileList }
+                {
+                  ..state,
+                  conn_panel: @app.ProfileList,
+                  status: @app.connect_status(@app.ProfileList),
+                }
               } else {
                 { ..state, conn_form: state.conn_form.handle_key(key) }
               }
