@@ -43,19 +43,21 @@ pub fn render_help_overlay(
   let overlay_area = @layout.Rect::new(area.x + ox, area.y + oy, ow, oh)
   let content = match state.screen {
     @app.Connect =>
-      " Tab / Shift-Tab  次/前フィールド\n" +
-      " ↑ / ↓           DB種別切替\n" +
-      " Enter            接続\n" +
-      " q / Ctrl-C       終了\n" +
+      " Tab / Shift-Tab  next / prev field\n" +
+      " ↑ / ↓           change DB type (when on DB row)\n" +
+      " Enter            connect / load profile\n" +
+      " Ctrl+S           save profile to keyring\n" +
+      " d                delete selected profile\n" +
+      " q / Ctrl-C       quit\n" +
       "\n" +
-      " ? / Esc          このヘルプを閉じる"
+      " ?                close this help"
     @app.Main =>
-      " Tab              パネル切替\n" +
-      " Enter            SQL実行 (Editorのみ)\n" +
-      " ↑ / ↓           スクロール/選択\n" +
-      " Ctrl-C / Ctrl-Q  終了\n" +
+      " Tab              switch panel\n" +
+      " Ctrl+Enter       run SQL (editor only)\n" +
+      " ↑ / ↓           scroll / select\n" +
+      " Ctrl-C / Ctrl-Q  quit\n" +
       "\n" +
-      " ? / Esc          このヘルプを閉じる"
+      " ?                close this help"
   }
   let block = @widget.Block::new()
     .title(" Key Bindings ")

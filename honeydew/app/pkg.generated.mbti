@@ -3,6 +3,7 @@ package "tiibun/honeydew/app"
 
 import {
   "moonbitlang/async",
+  "tiibun/honeydew/config",
   "tiibun/honeydew/db",
   "tiibun/honeydew/db/mysql",
   "tiibun/honeydew/db/postgres",
@@ -12,6 +13,7 @@ import {
 }
 
 // Values
+pub fn str_to_int(String, Int) -> Int
 
 // Errors
 
@@ -20,6 +22,9 @@ pub(all) struct AppState {
   screen : Screen
   conn : DbHandle?
   conn_form : ConnForm
+  conn_panel : ConnPanel
+  profiles : Array[@config.ConnProfile]
+  profile_idx : Int
   schema_items : Array[String]
   schema_list : @widget.List
   sql_input : @widget.TextArea
@@ -30,10 +35,16 @@ pub(all) struct AppState {
   show_help : Bool
   group : @async.TaskGroup[Unit]
 }
+pub fn AppState::delete_selected_profile(Self) -> Self
 pub async fn AppState::do_connect(Self) -> Self
+pub fn AppState::load_selected_profile(Self) -> Self
+pub fn AppState::navigate_profiles(Self, @terminal.Key) -> Self
 pub fn AppState::new(@async.TaskGroup[Unit]) -> Self
+pub fn AppState::profile_names(Self) -> Array[String]
+pub fn AppState::save_current_profile(Self) -> Self
 
 pub(all) struct ConnForm {
+  name : @widget.Input
   kind_idx : Int
   host : @widget.Input
   port : @widget.Input
@@ -46,6 +57,12 @@ pub(all) struct ConnForm {
 pub fn ConnForm::field_count(Self) -> Int
 pub fn ConnForm::handle_key(Self, @terminal.Key) -> Self
 pub fn ConnForm::new() -> Self
+pub fn ConnForm::total_fields(Self) -> Int
+
+pub(all) enum ConnPanel {
+  ProfileList
+  Form
+} derive(Eq)
 
 pub(all) enum DbHandle {
   Sqlite(@sqlite.SqliteConn)

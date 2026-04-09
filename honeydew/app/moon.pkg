@@ -1,4 +1,5 @@
 import {
+  "tiibun/honeydew/config" @config,
   "tiibun/honeydew/db",
   "tiibun/honeydew/db/sqlite",
   "tiibun/honeydew/db/postgres",

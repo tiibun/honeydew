@@ -25,9 +25,10 @@ pub fn[W : @widget.Widget] Frame::render_widget(
 /// `Terminal` owns the double buffer and raw-mode state.
 /// Obtain one with `Terminal::new()`, then call `draw()` each frame.
 pub struct Terminal {
-  current : @buffer.Buffer
-  previous : @buffer.Buffer
+  mut current : @buffer.Buffer
+  mut previous : @buffer.Buffer
   raw : @terminal.RawMode
+  resize_rx : @pipe.PipeRead
 }
 
 ///|
@@ -45,6 +46,21 @@ pub fn Terminal::new() -> Result[Terminal, String] {
       return Err(e)
     }
   }
+  // Set up resize pipe: SIGWINCH handler writes a byte to the write end.
+  // C code dup()s the write fd, so we can close the MoonBit side right away.
+  let resize_rx = try @pipe.pipe() catch {
+    e => {
+      let _ = raw.exit()
+      return Err("failed to create resize pipe: \{e}")
+    }
+  } noraise {
+    (rx, tx) => {
+      let write_fd = tx.fd()
+      tx.close()
+      let _ = @terminal.setup_sigwinch(write_fd)
+      rx
+    }
+  }
   let area = @layout.Rect::new(1, 1, cols, rows)
   @terminal.write(@terminal.enter_alternate_screen())
   @terminal.write(@terminal.cursor_hide())
@@ -54,6 +70,7 @@ pub fn Terminal::new() -> Result[Terminal, String] {
     current: @buffer.Buffer::new(area),
     previous: @buffer.Buffer::new(area),
     raw,
+    resize_rx,
   })
 }
 
@@ -64,12 +81,26 @@ pub fn Terminal::restore(self : Terminal) -> Unit {
   @terminal.write(@terminal.cursor_show())
   @terminal.write(@terminal.leave_alternate_screen())
   let _ = self.raw.exit()
+  @terminal.cleanup_sigwinch()
+  self.resize_rx.close()
 }
 
 ///|
-/// Draw one frame. Clears the current buffer, calls `f` with a `Frame`,
-/// then flushes only the changed cells to stdout.
+/// Draw one frame. Detects terminal resize, clears the current buffer,
+/// calls `f` with a `Frame`, then flushes only the changed cells to stdout.
 pub fn Terminal::draw(self : Terminal, f : (Frame) -> Unit) -> Unit {
+  // Detect resize and rebuild buffers if needed.
+  match @terminal.get_size() {
+    Ok((cols, rows)) => {
+      let area = @layout.Rect::new(1, 1, cols, rows)
+      if area != self.current.area {
+        self.current = @buffer.Buffer::new(area)
+        self.previous = @buffer.Buffer::new(area)
+        @terminal.write(@terminal.clear_all())
+      }
+    }
+    Err(_) => ()
+  }
   self.current.clear()
   let frame = Frame::{ buf: self.current }
   f(frame)
@@ -101,7 +132,16 @@ fn Terminal::flush_diff(self : Terminal) -> Unit {
 
 ///|
 /// Read a single key event (async).
+/// Races between stdin input and terminal resize; returns `Resize` when the
+/// terminal window size changes.
 pub async fn Terminal::read_key(self : Terminal) -> @terminal.Key {
-  let _ = self
-  @terminal.read_key()
+  let resize_rx = self.resize_rx
+  @async.any([
+    async fn() { @terminal.read_key() },
+    async fn() {
+      let buf : FixedArray[Byte] = FixedArray::make(1, b'\x00')
+      let _ = try? resize_rx.read(buf, offset=0, max_len=1)
+      @terminal.Resize
+    },
+  ])
 }

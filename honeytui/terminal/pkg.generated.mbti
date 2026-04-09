@@ -2,6 +2,8 @@
 package "tiibun/honeytui/terminal"
 
 // Values
+pub fn cleanup_sigwinch() -> Unit
+
 pub fn clear_all() -> String
 
 pub fn clear_eol() -> String
@@ -25,6 +27,8 @@ pub fn mouse_on() -> String
 pub async fn read_key() -> Key
 
 pub fn reset() -> String
+
+pub fn setup_sigwinch(Int) -> Bool
 
 pub fn write(String) -> Unit
 
@@ -56,6 +60,7 @@ pub(all) enum Key {
   CtrlEnter
   MouseClick(Int, Int)
   Unknown(Array[Int])
+  Resize
 } derive(Eq, Show)
 pub fn Key::from_bytes(Array[Int]) -> Self
 

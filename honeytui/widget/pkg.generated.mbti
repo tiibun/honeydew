@@ -42,10 +42,12 @@ pub struct Input {
   style : @style.Style
   block : Block?
   focused : Bool
+  mask : Bool
 }
 pub fn Input::block(Self, Block) -> Self
 pub fn Input::focused(Self, Bool) -> Self
 pub fn Input::handle_key(Self, @terminal.Key) -> Self
+pub fn Input::masked(Self, Bool) -> Self
 pub fn Input::new() -> Self
 pub fn Input::style(Self, @style.Style) -> Self
 pub fn Input::value(Self) -> String

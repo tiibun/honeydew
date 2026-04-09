@@ -10,6 +10,8 @@ pub struct Input {
   block : Block?
   /// When true, the cursor is rendered as a highlighted cell.
   focused : Bool
+  /// When true, the value is displayed as asterisks (password mode).
+  mask : Bool
 }
 
 ///|
@@ -20,6 +22,7 @@ pub fn Input::new() -> Input {
     style: @style.Style::default(),
     block: None,
     focused: false,
+    mask: false,
   }
 }
 
@@ -41,6 +44,12 @@ pub fn Input::block(self : Input, block : Block) -> Input {
 ///|
 pub fn Input::focused(self : Input, focused : Bool) -> Input {
   { ..self, focused, }
+}
+
+///|
+/// Enable or disable password masking (displays `*` in place of actual characters).
+pub fn Input::masked(self : Input, mask : Bool) -> Input {
+  { ..self, mask, }
 }
 
 ///|
@@ -100,10 +109,18 @@ pub impl Widget for Input with render(self, area, buf) {
     return
   }
   let width = inner.width
+  // Build the display value (masked or plain).
+  let dv = if self.mask {
+    let sb = StringBuilder::new()
+    for _ in 0..<self.value.length() {
+      sb.write_char('*')
+    }
+    sb.to_string()
+  } else {
+    self.value
+  }
   // Compute display column of the cursor (in display columns, not code units).
-  let cursor_cols = @buffer.str_display_width(
-    self.value[:self.cursor].to_string(),
-  )
+  let cursor_cols = @buffer.str_display_width(dv[:self.cursor].to_string())
   // Scroll so that cursor is always visible (in display columns).
   let scroll_cols = if cursor_cols >= width {
     cursor_cols - width + 1
@@ -111,19 +128,15 @@ pub impl Widget for Input with render(self, area, buf) {
     0
   }
   // Convert scroll_cols (display cols) to a char index for slicing.
-  let scroll = display_to_char_index(self.value, scroll_cols)
-  let visible = if self.value.length() > scroll {
-    self.value[scroll:].to_string()
-  } else {
-    ""
-  }
+  let scroll = display_to_char_index(dv, scroll_cols)
+  let visible = if dv.length() > scroll { dv[scroll:].to_string() } else { "" }
   buf.set_string(inner.x, inner.y, visible, self.style)
   // Render cursor highlight when focused
   if self.focused {
     let cx = inner.x + cursor_cols - scroll_cols
     if cx >= inner.x && cx < inner.x + inner.width {
-      let cursor_char = if self.cursor < self.value.length() {
-        self.value[self.cursor:self.cursor + 1].to_string()
+      let cursor_char = if self.cursor < dv.length() {
+        dv[self.cursor:self.cursor + 1].to_string()
       } else {
         " "
       }

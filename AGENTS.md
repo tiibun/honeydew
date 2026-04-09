@@ -15,6 +15,10 @@ You can browse and install extra skills here:
 - In the toplevel directory, there is a `moon.mod.json` file listing module
   metadata.
 
+## UI language
+
+All user-facing strings in the UI (labels, status messages, error messages, help text, panel titles, key binding hints) must be written in **English**.
+
 ## Coding convention
 
 - MoonBit code is organized in block style, each block is separated by `///|`,

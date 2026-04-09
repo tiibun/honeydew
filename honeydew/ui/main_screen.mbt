@@ -55,7 +55,7 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     @style.Style::default().fg(@style.BrightBlack)
   }
   let editor_block = @widget.Block::new()
-    .title(" SQL (Enter=run) ")
+    .title(" SQL (Ctrl+Enter=run) ")
     .borders(@widget.Borders::all())
     .border_style(editor_border_style)
   let sql_widget = state.sql_input.focused(editor_focused).block(editor_block)
@@ -82,7 +82,7 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   let tbl = state.results.block(results_block)
   frame.render_widget(tbl, results_area)
   // ---- Status bar ----
-  let status_style = if state.status.contains("エラー") {
+  let status_style = if state.status.contains("Error") {
     @style.Style::default().fg(@style.Red).bg(@style.Black)
   } else {
     @style.Style::default().fg(@style.White).bg(@style.Black)

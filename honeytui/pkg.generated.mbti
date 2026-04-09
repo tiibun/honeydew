@@ -2,6 +2,7 @@
 package "tiibun/honeytui"
 
 import {
+  "moonbitlang/async/pipe",
   "tiibun/honeytui/buffer",
   "tiibun/honeytui/layout",
   "tiibun/honeytui/terminal",
@@ -30,9 +31,10 @@ pub fn[W : @widget.Widget] Frame::render_widget(Self, W, @layout.Rect) -> Unit
 pub fn Frame::size(Self) -> @layout.Rect
 
 pub struct Terminal {
-  current : @buffer.Buffer
-  previous : @buffer.Buffer
+  mut current : @buffer.Buffer
+  mut previous : @buffer.Buffer
   raw : @terminal.RawMode
+  resize_rx : @pipe.PipeRead
 }
 pub fn Terminal::draw(Self, (Frame) -> Unit) -> Unit
 pub fn Terminal::new() -> Result[Self, String]

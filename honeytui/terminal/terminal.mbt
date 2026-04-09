@@ -156,6 +156,19 @@ pub async fn read_key() -> Key {
 }
 
 ///|
+/// Install a SIGWINCH (resize) handler that writes a byte to `write_fd`.
+/// Returns true on success. No-op on Windows.
+pub fn setup_sigwinch(write_fd : Int) -> Bool {
+  hd_setup_sigwinch(write_fd) >= 0
+}
+
+///|
+/// Remove the SIGWINCH handler installed by `setup_sigwinch`.
+pub fn cleanup_sigwinch() -> Unit {
+  let _ = hd_cleanup_sigwinch()
+}
+
+///|
 /// Return the current terminal size as (cols, rows).
 pub fn get_size() -> Result[(Int, Int), String] {
   let packed = hd_get_winsize()

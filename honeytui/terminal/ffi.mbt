@@ -14,3 +14,12 @@ extern "c" fn hd_get_winsize() -> Int = "hd_get_winsize"
 ///|
 #borrow(buf)
 extern "c" fn hd_write(buf : Bytes, len : Int) -> Unit = "hd_write"
+
+///|
+/// Install a SIGWINCH handler that writes one byte to `write_fd` on resize.
+/// On Windows this is a no-op. Returns 0 on success, -1 on failure.
+extern "c" fn hd_setup_sigwinch(write_fd : Int) -> Int = "hd_setup_sigwinch"
+
+///|
+/// Remove the SIGWINCH handler and close the internal write fd.
+extern "c" fn hd_cleanup_sigwinch() -> Int = "hd_cleanup_sigwinch"

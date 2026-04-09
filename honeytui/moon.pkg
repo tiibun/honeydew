@@ -4,4 +4,6 @@ import {
   "tiibun/honeytui/layout",
   "tiibun/honeytui/buffer",
   "tiibun/honeytui/widget",
+  "moonbitlang/async" @async,
+  "moonbitlang/async/pipe" @pipe,
 }

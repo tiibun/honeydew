@@ -1,9 +1,8 @@
 ///|
-/// Render the connection form screen.
+/// Render the connection screen with a left profile-list panel and a right form panel.
 pub fn render_connect(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   let area = frame.size()
   render_menu_bar(frame, state)
-  // Content area starts below the 1-row menu bar
   let content = @layout.Rect::new(
     area.x,
     area.y + 1,
@@ -14,21 +13,18 @@ pub fn render_connect(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
       0
     },
   )
-  // Centre a 60×14 box inside the content area
-  let box_w = 60
-  let box_h = 14
-  let bx = (content.width - box_w) / 2
-  let by = (content.height - box_h) / 2
-  let bx2 = if bx > 0 { bx } else { 0 }
-  let by2 = if by > 0 { by } else { 0 }
+  // Outer box: up to 82 wide, 16 tall, centred
+  let box_w = if content.width > 84 { 82 } else { content.width }
+  let box_h = 16
+  let bx = if box_w < content.width { (content.width - box_w) / 2 } else { 0 }
+  let by = if box_h < content.height { (content.height - box_h) / 2 } else { 0 }
   let bw = if box_w < content.width { box_w } else { content.width }
   let bh = if box_h < content.height { box_h } else { content.height }
-  let box_area = @layout.Rect::new(content.x + bx2, content.y + by2, bw, bh)
+  let box_area = @layout.Rect::new(content.x + bx, content.y + by, bw, bh)
   let form = state.conn_form
   let kind_label = @app.DbKind::label(db_kind(form.kind_idx))
-  let title = " honeydew — Connect to \{kind_label} "
   let outer_block = @widget.Block::new()
-    .title(title)
+    .title(" honeydew — Connect to \{kind_label} ")
     .borders(@widget.Borders::all())
     .border_style(@style.Style::default().fg(@style.Cyan))
     .title_style(@style.Style::default().fg(@style.Yellow))
@@ -36,67 +32,241 @@ pub fn render_connect(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   let inner = @layout.Rect::new(
     box_area.x + 1,
     box_area.y + 1,
-    box_area.width - 2,
-    box_area.height - 2,
+    if box_area.width > 2 {
+      box_area.width - 2
+    } else {
+      0
+    },
+    if box_area.height > 2 {
+      box_area.height - 2
+    } else {
+      0
+    },
   )
-  // Split into rows
+  // Split inner area: left=22, gap=1, right=rest
+  let left_w = 22
+  let gap = 1
+  let right_w = if inner.width > left_w + gap {
+    inner.width - left_w - gap
+  } else {
+    0
+  }
+  let left_area = @layout.Rect::new(inner.x, inner.y, left_w, inner.height)
+  let right_area = @layout.Rect::new(
+    inner.x + left_w + gap,
+    inner.y,
+    right_w,
+    inner.height,
+  )
+  render_profile_panel(frame, state, left_area)
+  render_form_panel(frame, state, right_area)
+  if state.show_help {
+    render_help_overlay(frame, state)
+  }
+}
+
+///|
+/// Left panel: list of saved profiles.
+fn render_profile_panel(
+  frame : @honeytui.Frame,
+  state : @app.AppState,
+  area : @layout.Rect,
+) -> Unit {
+  let profile_focus = state.conn_panel == @app.ProfileList
+  let border_style = if profile_focus {
+    @style.Style::default().fg(@style.Cyan)
+  } else {
+    @style.Style::default().fg(@style.BrightBlack)
+  }
+  let block = @widget.Block::new()
+    .title(" Profiles ")
+    .borders(@widget.Borders::all())
+    .border_style(border_style)
+  frame.render_widget(block, area)
+  let inner = @layout.Rect::new(
+    area.x + 1,
+    area.y + 1,
+    if area.width > 2 {
+      area.width - 2
+    } else {
+      0
+    },
+    if area.height > 2 {
+      area.height - 2
+    } else {
+      0
+    },
+  )
+  let names = state.profile_names()
+  let max_rows = inner.height
+  let visible_count = if names.length() < max_rows {
+    names.length()
+  } else {
+    max_rows
+  }
+  for i = 0; i < visible_count; i = i + 1 {
+    let row = @layout.Rect::new(inner.x, inner.y + i, inner.width, 1)
+    let is_selected = i == state.profile_idx
+    let prefix = if is_selected { "> " } else { "  " }
+    let name = names[i]
+    let max_name = if inner.width > 2 { inner.width - 2 } else { 0 }
+    let display = if name.length() > max_name {
+      name[0:max_name].to_string()
+    } else {
+      name
+    }
+    let text = "\{prefix}\{display}"
+    let style = if is_selected && profile_focus {
+      @style.Style::default().fg(@style.Yellow).add_modifier(@style.bold)
+    } else if is_selected {
+      @style.Style::default().fg(@style.White).add_modifier(@style.bold)
+    } else {
+      @style.Style::default().fg(@style.White)
+    }
+    frame.render_widget(@widget.Paragraph::new(text).style(style), row)
+  }
+  // Bottom hint
+  if inner.height > 0 {
+    let hint_y = inner.y + (if inner.height > 1 { inner.height - 1 } else { 0 })
+    let hint_row = @layout.Rect::new(inner.x, hint_y, inner.width, 1)
+    let hint = if names.length() == 0 {
+      "保存なし"
+    } else {
+      "↑↓=選択"
+    }
+    frame.render_widget(
+      @widget.Paragraph::new(hint).style(
+        @style.Style::default().fg(@style.BrightBlack),
+      ),
+      hint_row,
+    )
+  }
+}
+
+///|
+/// Right panel: connection form.
+fn render_form_panel(
+  frame : @honeytui.Frame,
+  state : @app.AppState,
+  area : @layout.Rect,
+) -> Unit {
+  let form_focus = state.conn_panel == @app.Form
+  let border_style = if form_focus {
+    @style.Style::default().fg(@style.Cyan)
+  } else {
+    @style.Style::default().fg(@style.BrightBlack)
+  }
+  let block = @widget.Block::new()
+    .borders(@widget.Borders::all())
+    .border_style(border_style)
+  frame.render_widget(block, area)
+  let inner = @layout.Rect::new(
+    area.x + 1,
+    area.y + 1,
+    if area.width > 2 {
+      area.width - 2
+    } else {
+      0
+    },
+    if area.height > 2 {
+      area.height - 2
+    } else {
+      0
+    },
+  )
+  let form = state.conn_form
+  let kind_label = @app.DbKind::label(db_kind(form.kind_idx))
+  // Rows layout:
+  // 0: Name field
+  // 1: DB kind selector
+  // 2: spacer
+  // 3..7: connection text fields (up to 5)
+  // 8: spacer
+  // 9: error / hint
   let rows = @layout.Layout::new(@layout.Vertical, [
-    @layout.Length(1), // 0: DB kind selector
-    @layout.Length(1), // 1: spacer
-    @layout.Length(1), // 2: field 1
-    @layout.Length(1), // 3: field 2
-    @layout.Length(1), // 4: field 3
-    @layout.Length(1), // 5: field 4
-    @layout.Length(1), // 6: field 5
-    @layout.Length(1), // 7: spacer
-    @layout.Length(1), // 8: error / hint
+    @layout.Length(1), // 0: profile name
+    @layout.Length(1), // 1: DB kind
+    @layout.Length(1), // 2: spacer
+    @layout.Length(1), // 3: field 1
+    @layout.Length(1), // 4: field 2
+    @layout.Length(1), // 5: field 3
+    @layout.Length(1), // 6: field 4
+    @layout.Length(1), // 7: field 5
+    @layout.Length(1), // 8: spacer
+    @layout.Min(1), // 9: error/hint
   ]).split(inner)
-  // DB kind row
-  let kind_text = "  DB: [ \{kind_label} ]  (↑↓ to change)"
-  let kind_style = if form.focus_idx == 0 {
+  // ── Row 0: Profile name ──
+  let name_label = "Name: "
+  let label_w = 10
+  let input_w = if rows[0].width > label_w {
+    rows[0].width - label_w
+  } else {
+    0
+  }
+  frame.render_widget(
+    @widget.Paragraph::new(name_label).style(
+      @style.Style::default().fg(@style.Cyan),
+    ),
+    @layout.Rect::new(rows[0].x, rows[0].y, label_w, 1),
+  )
+  let name_input = form.name.focused(form_focus && form.focus_idx == 0)
+  frame.render_widget(
+    name_input,
+    @layout.Rect::new(rows[0].x + label_w, rows[0].y, input_w, 1),
+  )
+  // ── Row 1: DB kind ──
+  let kind_text = "DB: [ \{kind_label} ]  (↑↓ to change)"
+  let kind_style = if form_focus && form.focus_idx == 1 {
     @style.Style::default().fg(@style.Yellow).add_modifier(@style.bold)
   } else {
     @style.Style::default().fg(@style.White)
   }
   frame.render_widget(
     @widget.Paragraph::new(kind_text).style(kind_style),
-    rows[0],
+    rows[1],
   )
-  // Field labels differ by DB kind
+  // ── Rows 3..7: connection text fields ──
   let field_labels : Array[String] = match form.kind_idx {
     0 => ["Database path", "", "", "", ""]
     _ => ["Host", "Port", "Database", "User", "Password"]
   }
   let field_inputs : Array[@widget.Input] = match form.kind_idx {
     0 => [form.database, form.port, form.database, form.username, form.password]
-    _ => [form.host, form.port, form.database, form.username, form.password]
+    _ =>
+      [
+        form.host,
+        form.port,
+        form.database,
+        form.username,
+        form.password.masked(true),
+      ]
   }
   let visible_fields = match form.kind_idx {
     0 => 1
     _ => 5
   }
   for fi = 0; fi < visible_fields; fi = fi + 1 {
-    let row = rows[2 + fi]
+    let row = rows[3 + fi]
     let label = field_labels[fi]
-    let label_w = 16
-    let input_w = if row.width > label_w { row.width - label_w } else { 0 }
-    let label_area = @layout.Rect::new(row.x, row.y, label_w, 1)
-    let input_area = @layout.Rect::new(row.x + label_w, row.y, input_w, 1)
+    let lw = 10
+    let iw = if row.width > lw { row.width - lw } else { 0 }
+    let label_area = @layout.Rect::new(row.x, row.y, lw, 1)
+    let input_area = @layout.Rect::new(row.x + lw, row.y, iw, 1)
     frame.render_widget(
       @widget.Paragraph::new("\{label}: ").style(
         @style.Style::default().fg(@style.Cyan),
       ),
       label_area,
     )
-    let is_focused = form.focus_idx == fi + 1
+    let is_focused = form_focus && form.focus_idx == fi + 2
     let input = field_inputs[fi].focused(is_focused)
     frame.render_widget(input, input_area)
   }
-  // Error or hint at the bottom
+  // ── Row 9: Error or hint ──
   let bottom_text = if form.error != "" {
     form.error
   } else {
-    "Tab/Shift-Tab=next/prev field  Enter=connect  ↑↓=change DB  q=quit"
+    "Enter=connect  Ctrl+S=save  Tab=switch  d=delete"
   }
   let bottom_style = if form.error != "" {
     @style.Style::default().fg(@style.Red)
@@ -105,11 +275,8 @@ pub fn render_connect(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   }
   frame.render_widget(
     @widget.Paragraph::new(bottom_text).style(bottom_style),
-    rows[8],
+    rows[9],
   )
-  if state.show_help {
-    render_help_overlay(frame, state)
-  }
 }
 
 ///|
