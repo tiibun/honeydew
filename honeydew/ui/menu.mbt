@@ -19,7 +19,7 @@ pub fn render_menu_bar(frame : @honeytui.Frame, _state : @app.AppState) -> Unit 
   let area = frame.size()
   let bar_area = @layout.Rect::new(area.x, area.y, area.width, 1)
   let left = " honeydew "
-  let right = " ?=Help  Ctrl-C=Quit "
+  let right = " ?=Help  Ctrl+Q=Quit "
   let text = fill_row(left, right, area.width)
   let bar_style = @style.Style::default().fg(@style.Black).bg(@style.Cyan)
   frame.render_widget(@widget.Paragraph::new(text).style(bar_style), bar_area)
@@ -48,14 +48,14 @@ pub fn render_help_overlay(
       " Enter            connect / load profile\n" +
       " Ctrl+S           save profile to keyring\n" +
       " d                delete selected profile\n" +
-      " q / Ctrl-C       quit\n" +
+      " q / Ctrl+Q       quit\n" +
       "\n" +
       " ?                close this help"
     @app.Main =>
       " Tab              switch panel\n" +
       " Ctrl+Enter       run SQL (editor only)\n" +
       " ↑ / ↓           scroll / select\n" +
-      " Ctrl-C / Ctrl-Q  quit\n" +
+      " Ctrl+Q           quit\n" +
       "\n" +
       " ?                close this help"
   }
