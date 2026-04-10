@@ -131,7 +131,7 @@ fn ConnForm::route_key_to_field(
 ) -> ConnForm {
   match self.focus_idx {
     0 => { ..self, name: self.name.handle_key(key) }
-    1 => self // DB kind – handled by Up/Down above
+    1 => self
     fi => {
       let field_fi = fi - 2 // 0-based connection field index
       match self.kind_idx {
@@ -327,7 +327,6 @@ pub fn AppState::save_current_profile(self : AppState) -> AppState {
     database: form.database.value(),
     username: form.username.value(),
   }
-  // Find existing index or append
   let mut existing_idx = -1
   for i = 0; i < self.profiles.length(); i = i + 1 {
     if self.profiles[i].name == name {
@@ -335,10 +334,7 @@ pub fn AppState::save_current_profile(self : AppState) -> AppState {
       break
     }
   }
-  let new_profiles : Array[@config.ConnProfile] = []
-  for p in self.profiles {
-    new_profiles.push(p)
-  }
+  let new_profiles = self.profiles.copy()
   if existing_idx >= 0 {
     new_profiles[existing_idx] = profile
   } else {
@@ -369,12 +365,8 @@ pub fn AppState::delete_selected_profile(self : AppState) -> AppState {
   }
   let name = self.profiles[self.profile_idx].name
   @config.keyring_delete(name)
-  let new_profiles : Array[@config.ConnProfile] = []
-  for i = 0; i < self.profiles.length(); i = i + 1 {
-    if i != self.profile_idx {
-      new_profiles.push(self.profiles[i])
-    }
-  }
+  let new_profiles = self.profiles.copy()
+  let _ = new_profiles.remove(self.profile_idx)
   @config.save_profiles(new_profiles)
   let new_idx = if new_profiles.length() == 0 {
     -1

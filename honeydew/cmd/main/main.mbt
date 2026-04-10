@@ -76,21 +76,11 @@ async fn handle_key(
       match state.screen {
         @app.Connect =>
           match state.conn_panel {
-            @app.ProfileList =>
-              {
-                ..state,
-                conn_panel: @app.Form,
-                conn_form: { ..state.conn_form, focus_idx: 0 },
-                status: @app.connect_status(@app.Form),
-              }
+            @app.ProfileList => switch_to_form(state, 0)
             @app.Form => {
               let total = state.conn_form.total_fields()
               if state.conn_form.focus_idx >= total - 1 {
-                {
-                  ..state,
-                  conn_panel: @app.ProfileList,
-                  status: @app.connect_status(@app.ProfileList),
-                }
+                switch_to_profile_list(state)
               } else {
                 { ..state, conn_form: state.conn_form.handle_key(key) }
               }
@@ -106,22 +96,10 @@ async fn handle_key(
         @app.Connect =>
           match state.conn_panel {
             @app.ProfileList =>
-              {
-                ..state,
-                conn_panel: @app.Form,
-                conn_form: {
-                  ..state.conn_form,
-                  focus_idx: state.conn_form.total_fields() - 1,
-                },
-                status: @app.connect_status(@app.Form),
-              }
+              switch_to_form(state, state.conn_form.total_fields() - 1)
             @app.Form =>
               if state.conn_form.focus_idx == 0 {
-                {
-                  ..state,
-                  conn_panel: @app.ProfileList,
-                  status: @app.connect_status(@app.ProfileList),
-                }
+                switch_to_profile_list(state)
               } else {
                 { ..state, conn_form: state.conn_form.handle_key(key) }
               }
@@ -170,6 +148,25 @@ async fn handle_key(
       }
     Resize => state // redraw happens automatically on the next draw() call
     _ => dispatch(state, key)
+  }
+}
+
+///|
+fn switch_to_form(state : @app.AppState, focus_idx : Int) -> @app.AppState {
+  {
+    ..state,
+    conn_panel: @app.Form,
+    conn_form: { ..state.conn_form, focus_idx },
+    status: @app.connect_status(@app.Form),
+  }
+}
+
+///|
+fn switch_to_profile_list(state : @app.AppState) -> @app.AppState {
+  {
+    ..state,
+    conn_panel: @app.ProfileList,
+    status: @app.connect_status(@app.ProfileList),
   }
 }
 
