@@ -108,6 +108,7 @@ pub fn render_help_overlay(
       " Tab              switch panel\n" +
       " Ctrl+Enter       run statement at cursor\n" +
       " F5               run all statements\n" +
+      " Ctrl+C           cancel running query\n" +
       " Ctrl+S           export results as CSV\n" +
       " Ctrl+B           BEGIN transaction\n" +
       " Ctrl+M           COMMIT transaction\n" +

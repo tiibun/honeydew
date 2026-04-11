@@ -3,6 +3,7 @@ package "tiibun/honeydew/app"
 
 import {
   "moonbitlang/async",
+  "moonbitlang/core/bench",
   "tiibun/honeydew/config",
   "tiibun/honeydew/db",
   "tiibun/honeydew/db/mysql",
@@ -45,6 +46,8 @@ pub(all) struct AppState {
   show_help : Bool
   show_error : Bool
   in_transaction : Bool
+  running_query : RunningQuery?
+  cancel_requested : Bool
   group : @async.TaskGroup[Unit]
 }
 pub async fn AppState::begin_transaction(Self) -> Self
@@ -55,6 +58,7 @@ pub fn AppState::delete_selected_profile(Self) -> Self
 pub async fn AppState::do_connect(Self) -> Self
 pub fn AppState::export_results_csv(Self) -> Self
 pub fn AppState::handle_schema_click(Self, Int, Int, Int, Int) -> Self
+pub fn AppState::is_query_running(Self) -> Bool
 pub fn AppState::load_selected_profile(Self) -> Self
 pub fn AppState::menu_bar_left_label(Self) -> String
 pub fn AppState::navigate_profiles(Self, @terminal.Key) -> Self
@@ -94,6 +98,10 @@ pub(all) enum DbHandle {
   Postgres(@postgres.PgConn)
   Mysql(@mysql.MysqlConn)
 }
+pub fn DbHandle::async_poll(Self) -> Int
+pub fn DbHandle::async_result(Self, Bool) -> Result[@db.QueryResult, String]
+pub fn DbHandle::async_start(Self, String) -> Bool
+pub fn DbHandle::cancel(Self) -> Unit
 pub fn DbHandle::close(Self) -> Unit
 pub async fn DbHandle::columns(Self, String) -> Result[Array[@db.ColumnInfo], String]
 pub async fn DbHandle::query(Self, String) -> Result[@db.QueryResult, String]
@@ -111,6 +119,11 @@ pub(all) enum Panel {
   Editor
   Results
 } derive(Eq)
+
+pub(all) enum RunningQuery {
+  Single(sql~ : String, started~ : @bench.Timestamp)
+  RunAll(stmts~ : Array[String], current_idx~ : Int, started~ : @bench.Timestamp, partial_results~ : @widget.Table, total_rows~ : Int, total_affected~ : Int, has_affected~ : Bool, stmt_count~ : Int, in_txn~ : Bool)
+}
 
 pub(all) enum Screen {
   Connect

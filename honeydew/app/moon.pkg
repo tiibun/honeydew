@@ -8,4 +8,5 @@ import {
   "tiibun/honeytui/terminal",
   "tiibun/honeytui/widget",
   "moonbitlang/async" @async,
+  "moonbitlang/core/bench" @bench,
 }

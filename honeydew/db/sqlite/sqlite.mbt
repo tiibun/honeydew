@@ -22,6 +22,77 @@ pub fn SqliteConn::close(self : SqliteConn) -> Unit {
 }
 
 ///|
+/// Interrupt any long-running query on this connection.
+/// Thread-safe: may be called while a query is executing.
+pub fn SqliteConn::interrupt(self : SqliteConn) -> Unit {
+  hd_sqlite_interrupt(self.id)
+}
+
+///|
+/// Start an async query in a background thread.
+/// Returns true if the query was started successfully.
+pub fn SqliteConn::async_start(self : SqliteConn, sql : String) -> Bool {
+  let sql_bytes = @db.str_to_bytes(sql)
+  hd_sqlite_async_start(self.id, sql_bytes, sql_bytes.length()) == 0
+}
+
+///|
+/// Poll async worker status: 0=idle, 1=running, 2=done, 3=error.
+pub fn async_poll() -> Int {
+  hd_sqlite_async_poll()
+}
+
+///|
+/// Read the collected result from the async worker after completion.
+pub fn SqliteConn::async_result(
+  self : SqliteConn,
+  is_write : Bool,
+) -> Result[@db.QueryResult, String] {
+  let _ = self
+  let status = hd_sqlite_async_poll()
+  if status == 3 {
+    // error
+    let buf : FixedArray[Byte] = FixedArray::make(1024, b'\x00')
+    let n = hd_sqlite_async_errmsg(buf, buf.length())
+    let msg = if n > 0 {
+      @db.fixed_bytes_to_str(buf, n)
+    } else {
+      "query failed"
+    }
+    hd_sqlite_async_finish()
+    return Err(msg)
+  }
+  if status != 2 {
+    hd_sqlite_async_finish()
+    return Err("async query not complete")
+  }
+  let ncols = hd_sqlite_async_ncols()
+  let nrows = hd_sqlite_async_nrows()
+  let buf : FixedArray[Byte] = FixedArray::make(8192, b'\x00')
+  let columns : Array[String] = []
+  for col = 0; col < ncols; col = col + 1 {
+    let n = hd_sqlite_async_colname(col, buf, buf.length())
+    columns.push(if n > 0 { @db.fixed_bytes_to_str(buf, n) } else { "" })
+  }
+  let rows : Array[Array[String]] = []
+  for row = 0; row < nrows; row = row + 1 {
+    let r : Array[String] = []
+    for col = 0; col < ncols; col = col + 1 {
+      let n = hd_sqlite_async_value(row, col, buf, buf.length())
+      r.push(if n >= 0 { @db.fixed_bytes_to_str(buf, n) } else { "NULL" })
+    }
+    rows.push(r)
+  }
+  let affected_rows : Int? = if is_write {
+    Some(hd_sqlite_async_changes())
+  } else {
+    None
+  }
+  hd_sqlite_async_finish()
+  Ok({ columns, rows, affected_rows })
+}
+
+///|
 /// Execute a SQL statement and return the result rows.
 /// Non-SELECT statements (INSERT/UPDATE/DELETE) return an empty QueryResult.
 pub fn SqliteConn::query(

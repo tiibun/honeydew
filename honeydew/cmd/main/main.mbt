@@ -17,8 +17,17 @@ fn main {
             @app.Main => @ui.render_main(frame, state)
           }
         })
-        let key = terminal.read_key()
-        state = handle_key(state, key)
+        if state.is_query_running() {
+          // Non-blocking: poll for key with short timeout, then check query
+          match
+            @async.with_timeout_opt(50, async fn() { terminal.read_key() }) {
+            Some(key) => state = handle_key(state, key)
+            None => state = poll_running_query(state)
+          }
+        } else {
+          let key = terminal.read_key()
+          state = handle_key(state, key)
+        }
       }
       terminal.restore()
       match state.conn {
@@ -45,7 +54,34 @@ async fn handle_key(
     return { ..state, show_error: false }
   }
   match key {
-    CtrlC | CtrlQ => { ..state, should_quit: true }
+    CtrlC =>
+      if state.is_query_running() {
+        // Cancel the running query instead of quitting
+        match state.conn {
+          Some(conn) => conn.cancel()
+          None => ()
+        }
+        { ..state, cancel_requested: true }
+      } else {
+        { ..state, should_quit: true }
+      }
+    CtrlQ => { ..state, should_quit: true }
+    _ =>
+      // Ignore all other keys while a query is running
+      if state.is_query_running() {
+        state
+      } else {
+        handle_key_idle(state, key)
+      }
+  }
+}
+
+///|
+async fn handle_key_idle(
+  state : @app.AppState,
+  key : @terminal.Key,
+) -> @app.AppState {
+  match key {
     Char('?') => { ..state, show_help: true }
     Char('e') =>
       if state.screen == @app.Main && state.status.contains("Error") {
@@ -299,31 +335,53 @@ async fn run_query_at_cursor(state : @app.AppState) -> @app.AppState {
     None => { ..state, status: "Error: not connected", show_error: false }
     Some(conn) => {
       let started = @bench.monotonic_clock_start()
-      match (conn.query(stmt) catch { err => Err(err.to_string()) }) {
-        Ok(result) => {
-          let tbl = @widget.Table::new(result.columns, result.rows)
-          let next = {
-            ..state,
-            results: tbl,
-            status: with_execution_time(
-              query_result_status(result),
-              @bench.monotonic_clock_end(started),
-            ),
-            show_error: false,
-          }
-          next.sync_txn_flag_for_stmt(stmt)
+      // Try non-blocking path first (SQLite async worker)
+      if conn.async_start(stmt) {
+        {
+          ..state,
+          running_query: Some(@app.RunningQuery::Single(sql=stmt, started~)),
+          cancel_requested: false,
+          status: "Running query... Ctrl+C to cancel",
+          show_error: false,
         }
-        Err(msg) =>
-          {
-            ..state,
-            status: with_execution_time(
-              "Error: \{msg}",
-              @bench.monotonic_clock_end(started),
-            ),
-            show_error: false,
-          }
+      } else {
+        // Fallback: blocking execution (Postgres, MySQL)
+        run_query_sync(state, conn, stmt, started)
       }
     }
+  }
+}
+
+///|
+async fn run_query_sync(
+  state : @app.AppState,
+  conn : @app.DbHandle,
+  stmt : String,
+  started : @bench.Timestamp,
+) -> @app.AppState {
+  match (conn.query(stmt) catch { err => Err(err.to_string()) }) {
+    Ok(result) => {
+      let tbl = @widget.Table::new(result.columns, result.rows)
+      let next = {
+        ..state,
+        results: tbl,
+        status: with_execution_time(
+          query_result_status(result),
+          @bench.monotonic_clock_end(started),
+        ),
+        show_error: false,
+      }
+      next.sync_txn_flag_for_stmt(stmt)
+    }
+    Err(msg) =>
+      {
+        ..state,
+        status: with_execution_time(
+          "Error: \{msg}",
+          @bench.monotonic_clock_end(started),
+        ),
+        show_error: false,
+      }
   }
 }
 
@@ -339,64 +397,97 @@ async fn run_all_queries(state : @app.AppState) -> @app.AppState {
     None => { ..state, status: "Error: not connected", show_error: false }
     Some(conn) => {
       let started = @bench.monotonic_clock_start()
-      let mut last_result = @widget.Table::new([], [])
-      let mut total_rows = 0
-      let mut total_affected = 0
-      let mut has_affected_rows = false
-      let mut stmt_count = 0
-      let mut error : String? = None
-      let mut current_in_txn = state.in_transaction
-      for stmt in stmts {
-        match (conn.query(stmt) catch { err => Err(err.to_string()) }) {
-          Ok(result) => {
-            last_result = @widget.Table::new(result.columns, result.rows)
-            total_rows = total_rows + result.rows.length()
-            match result.affected_rows {
-              Some(n) => {
-                total_affected = total_affected + n
-                has_affected_rows = true
-              }
-              None => ()
-            }
-            stmt_count = stmt_count + 1
-            if @app.stmt_opens_txn(stmt) {
-              current_in_txn = true
-            } else if @app.stmt_closes_txn(stmt) {
-              current_in_txn = false
-            }
+      let first_sql = stmts[0]
+      // Try async path for the first statement
+      if conn.async_start(first_sql) {
+        let total = stmts.length()
+        {
+          ..state,
+          running_query: Some(
+            @app.RunningQuery::RunAll(
+              stmts~,
+              current_idx=0,
+              started~,
+              partial_results=@widget.Table::new([], []),
+              total_rows=0,
+              total_affected=0,
+              has_affected=false,
+              stmt_count=0,
+              in_txn=state.in_transaction,
+            ),
+          ),
+          cancel_requested: false,
+          status: "Running statement 1/\{total}... Ctrl+C to cancel",
+          show_error: false,
+        }
+      } else {
+        // Fallback: blocking execution for all statements
+        run_all_queries_sync(state, conn, stmts, started)
+      }
+    }
+  }
+}
+
+///|
+async fn run_all_queries_sync(
+  state : @app.AppState,
+  conn : @app.DbHandle,
+  stmts : Array[String],
+  started : @bench.Timestamp,
+) -> @app.AppState {
+  let mut last_result = @widget.Table::new([], [])
+  let mut total_rows = 0
+  let mut total_affected = 0
+  let mut has_affected_rows = false
+  let mut stmt_count = 0
+  let mut error : String? = None
+  let mut current_in_txn = state.in_transaction
+  for stmt in stmts {
+    match (conn.query(stmt) catch { err => Err(err.to_string()) }) {
+      Ok(result) => {
+        last_result = @widget.Table::new(result.columns, result.rows)
+        total_rows = total_rows + result.rows.length()
+        match result.affected_rows {
+          Some(n) => {
+            total_affected = total_affected + n
+            has_affected_rows = true
           }
-          Err(msg) => {
-            error = Some(msg)
-            break
-          }
+          None => ()
+        }
+        stmt_count = stmt_count + 1
+        if @app.stmt_opens_txn(stmt) {
+          current_in_txn = true
+        } else if @app.stmt_closes_txn(stmt) {
+          current_in_txn = false
         }
       }
-      match error {
-        Some(msg) =>
-          {
-            ..state,
-            in_transaction: current_in_txn,
-            status: with_execution_time(
-              "Error: \{msg}",
-              @bench.monotonic_clock_end(started),
-            ),
-            show_error: false,
-          }
-        None => {
-          let msg = run_all_status(
-            stmt_count, total_rows, total_affected, has_affected_rows,
-          )
-          {
-            ..state,
-            in_transaction: current_in_txn,
-            results: last_result,
-            status: with_execution_time(
-              msg,
-              @bench.monotonic_clock_end(started),
-            ),
-            show_error: false,
-          }
-        }
+      Err(msg) => {
+        error = Some(msg)
+        break
+      }
+    }
+  }
+  match error {
+    Some(msg) =>
+      {
+        ..state,
+        in_transaction: current_in_txn,
+        status: with_execution_time(
+          "Error: \{msg}",
+          @bench.monotonic_clock_end(started),
+        ),
+        show_error: false,
+      }
+    None => {
+      let msg = run_all_status(
+        stmt_count, total_rows, total_affected, has_affected_rows,
+      )
+      {
+        ..state,
+        in_transaction: current_in_txn,
+        results: last_result,
+        status: with_execution_time(msg, @bench.monotonic_clock_end(started)),
+        show_error: false,
       }
     }
   }
@@ -412,6 +503,208 @@ fn query_result_status(result : @db.QueryResult) -> String {
         "1 row fetched"
       } else {
         "\{n} rows fetched"
+      }
+    }
+  }
+}
+
+///|
+/// Poll the backend for async query completion.
+/// Handles Single and RunAll variants of RunningQuery.
+fn poll_running_query(state : @app.AppState) -> @app.AppState {
+  let conn = match state.conn {
+    Some(c) => c
+    None => return { ..state, running_query: None }
+  }
+  let rq = match state.running_query {
+    Some(rq) => rq
+    None => return state
+  }
+  let poll_status = conn.async_poll()
+  // 1 = still running
+  if poll_status == 1 {
+    return state
+  }
+  match rq {
+    Single(sql~, started~) => finish_single(state, conn, sql, started)
+    RunAll(
+      stmts~,
+      current_idx=idx,
+      started~,
+      partial_results=_,
+      total_rows~,
+      total_affected~,
+      has_affected~,
+      stmt_count~,
+      in_txn~
+    ) =>
+      finish_run_all_step(
+        state, conn, stmts, idx, started, total_rows, total_affected, has_affected,
+        stmt_count, in_txn,
+      )
+  }
+}
+
+///|
+/// Finish a single async query (poll_status != 1).
+fn finish_single(
+  state : @app.AppState,
+  conn : @app.DbHandle,
+  sql : String,
+  started : @bench.Timestamp,
+) -> @app.AppState {
+  let is_write = @db.is_write_statement(sql)
+  match conn.async_result(is_write) {
+    Ok(result) => {
+      let tbl = @widget.Table::new(result.columns, result.rows)
+      let status = if state.cancel_requested {
+        "Query cancelled"
+      } else {
+        query_result_status(result)
+      }
+      let next = {
+        ..state,
+        results: tbl,
+        running_query: None,
+        cancel_requested: false,
+        status: with_execution_time(status, @bench.monotonic_clock_end(started)),
+        show_error: false,
+      }
+      next.sync_txn_flag_for_stmt(sql)
+    }
+    Err(msg) => {
+      let status = if state.cancel_requested {
+        "Query cancelled"
+      } else {
+        "Error: \{msg}"
+      }
+      {
+        ..state,
+        running_query: None,
+        cancel_requested: false,
+        status: with_execution_time(status, @bench.monotonic_clock_end(started)),
+        show_error: false,
+      }
+    }
+  }
+}
+
+///|
+/// Handle completion of one step in a run-all sequence, then either advance
+/// to the next statement or finish.
+fn finish_run_all_step(
+  state : @app.AppState,
+  conn : @app.DbHandle,
+  stmts : Array[String],
+  idx : Int,
+  started : @bench.Timestamp,
+  total_rows : Int,
+  total_affected : Int,
+  has_affected : Bool,
+  stmt_count : Int,
+  in_txn : Bool,
+) -> @app.AppState {
+  let sql = stmts[idx]
+  let is_write = @db.is_write_statement(sql)
+  match conn.async_result(is_write) {
+    Ok(result) => {
+      let new_partial = @widget.Table::new(result.columns, result.rows)
+      let new_total_rows = total_rows + result.rows.length()
+      let mut new_total_affected = total_affected
+      let mut new_has_affected = has_affected
+      match result.affected_rows {
+        Some(n) => {
+          new_total_affected = new_total_affected + n
+          new_has_affected = true
+        }
+        None => ()
+      }
+      let new_stmt_count = stmt_count + 1
+      let mut new_in_txn = in_txn
+      if @app.stmt_opens_txn(sql) {
+        new_in_txn = true
+      } else if @app.stmt_closes_txn(sql) {
+        new_in_txn = false
+      }
+      let next_idx = idx + 1
+      if state.cancel_requested || next_idx >= stmts.length() {
+        // All done (or cancelled between statements)
+        let status = if state.cancel_requested {
+          "Cancelled after \{new_stmt_count}/\{stmts.length()} statements"
+        } else {
+          run_all_status(
+            new_stmt_count, new_total_rows, new_total_affected, new_has_affected,
+          )
+        }
+        {
+          ..state,
+          in_transaction: new_in_txn,
+          results: new_partial,
+          running_query: None,
+          cancel_requested: false,
+          status: with_execution_time(
+            status,
+            @bench.monotonic_clock_end(started),
+          ),
+          show_error: false,
+        }
+      } else {
+        // Start the next statement
+        let next_sql = stmts[next_idx]
+        if conn.async_start(next_sql) {
+          let total = stmts.length()
+          let display_idx = next_idx + 1
+          {
+            ..state,
+            in_transaction: new_in_txn,
+            running_query: Some(
+              @app.RunningQuery::RunAll(
+                stmts~,
+                current_idx=next_idx,
+                started~,
+                partial_results=new_partial,
+                total_rows=new_total_rows,
+                total_affected=new_total_affected,
+                has_affected=new_has_affected,
+                stmt_count=new_stmt_count,
+                in_txn=new_in_txn,
+              ),
+            ),
+            status: "Running statement \{display_idx}/\{total}... Ctrl+C to cancel",
+          }
+        } else {
+          // Can't start async — shouldn't happen mid-sequence, treat as done
+          let status = run_all_status(
+            new_stmt_count, new_total_rows, new_total_affected, new_has_affected,
+          )
+          {
+            ..state,
+            in_transaction: new_in_txn,
+            results: new_partial,
+            running_query: None,
+            cancel_requested: false,
+            status: with_execution_time(
+              status,
+              @bench.monotonic_clock_end(started),
+            ),
+            show_error: false,
+          }
+        }
+      }
+    }
+    Err(msg) => {
+      let status = if state.cancel_requested {
+        "Cancelled after \{stmt_count}/\{stmts.length()} statements"
+      } else {
+        "Error: \{msg}"
+      }
+      {
+        ..state,
+        in_transaction: in_txn,
+        running_query: None,
+        cancel_requested: false,
+        status: with_execution_time(status, @bench.monotonic_clock_end(started)),
+        show_error: false,
       }
     }
   }

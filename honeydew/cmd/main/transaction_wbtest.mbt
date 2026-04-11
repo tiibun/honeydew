@@ -83,7 +83,12 @@ async test "run_query_at_cursor with BEGIN syncs in_transaction" {
       conn: Some(@app.DbHandle::Sqlite(conn)),
       sql_input: @widget.TextArea::new().with_value("BEGIN"),
     }
-    let after = run_query_at_cursor(state)
+    let mut after = run_query_at_cursor(state)
+    let mut attempts = 0
+    while after.is_query_running() && attempts < 200000 {
+      after = poll_running_query(after)
+      attempts = attempts + 1
+    }
     assert_eq(after.in_transaction, true)
     match after.conn {
       Some(h) => h.close()
@@ -107,12 +112,22 @@ async test "run_query_at_cursor with COMMIT after BEGIN syncs in_transaction" {
       conn: Some(@app.DbHandle::Sqlite(conn)),
       sql_input: @widget.TextArea::new().with_value("BEGIN"),
     }
-    let after_begin = run_query_at_cursor(state)
+    let mut after_begin = run_query_at_cursor(state)
+    let mut attempts = 0
+    while after_begin.is_query_running() && attempts < 200000 {
+      after_begin = poll_running_query(after_begin)
+      attempts = attempts + 1
+    }
     assert_eq(after_begin.in_transaction, true)
-    let after_commit = run_query_at_cursor({
+    let mut after_commit = run_query_at_cursor({
       ..after_begin,
       sql_input: @widget.TextArea::new().with_value("COMMIT"),
     })
+    attempts = 0
+    while after_commit.is_query_running() && attempts < 200000 {
+      after_commit = poll_running_query(after_commit)
+      attempts = attempts + 1
+    }
     assert_eq(after_commit.in_transaction, false)
     match after_commit.conn {
       Some(h) => h.close()

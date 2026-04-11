@@ -228,6 +228,73 @@ pub fn DbHandle::close(self : DbHandle) -> Unit {
 }
 
 ///|
+/// Request cancellation of any in-flight query on this connection.
+pub fn DbHandle::cancel(self : DbHandle) -> Unit {
+  match self {
+    Sqlite(c) => c.interrupt()
+    Postgres(_) => () // TODO: pg_cancel_backend
+    Mysql(_) => () // TODO: KILL QUERY
+  }
+}
+
+///|
+/// Start a non-blocking query execution. Returns true if the background
+/// work was successfully initiated.
+pub fn DbHandle::async_start(self : DbHandle, sql : String) -> Bool {
+  match self {
+    Sqlite(c) => c.async_start(sql)
+    // Postgres and MySQL fall back to sync (handled by the caller)
+    Postgres(_) | Mysql(_) => false
+  }
+}
+
+///|
+/// Poll the async worker. Returns 0=idle, 1=running, 2=done, 3=error.
+pub fn DbHandle::async_poll(self : DbHandle) -> Int {
+  match self {
+    Sqlite(_) => @sqlite.async_poll()
+    Postgres(_) | Mysql(_) => 0
+  }
+}
+
+///|
+/// Collect async results after the worker is done.
+pub fn DbHandle::async_result(
+  self : DbHandle,
+  is_write : Bool,
+) -> Result[@db.QueryResult, String] {
+  match self {
+    Sqlite(c) => c.async_result(is_write)
+    Postgres(_) | Mysql(_) => Err("async not supported for this backend")
+  }
+}
+
+///|
+/// Returns true when a query is currently being executed.
+pub fn AppState::is_query_running(self : AppState) -> Bool {
+  self.running_query is Some(_)
+}
+
+///|
+/// Describes a running query job for the async query state machine.
+pub(all) enum RunningQuery {
+  /// A single statement execution (Ctrl+Enter).
+  Single(sql~ : String, started~ : @bench.Timestamp)
+  /// Sequential run-all execution (F5).
+  RunAll(
+    stmts~ : Array[String],
+    current_idx~ : Int,
+    started~ : @bench.Timestamp,
+    partial_results~ : @widget.Table,
+    total_rows~ : Int,
+    total_affected~ : Int,
+    has_affected~ : Bool,
+    stmt_count~ : Int,
+    in_txn~ : Bool
+  )
+}
+
+///|
 /// Top-level application state.
 pub(all) struct AppState {
   screen : Screen
@@ -248,6 +315,8 @@ pub(all) struct AppState {
   show_help : Bool
   show_error : Bool
   in_transaction : Bool
+  running_query : RunningQuery?
+  cancel_requested : Bool
   group : @async.TaskGroup[Unit]
 }
 
@@ -287,6 +356,8 @@ pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
     show_help: false,
     show_error: false,
     in_transaction: false,
+    running_query: None,
+    cancel_requested: false,
     group,
   }
 }
@@ -624,7 +695,7 @@ pub fn stmt_opens_txn(stmt : String) -> Bool {
 
 ///|
 /// Returns `true` when `stmt`, if executed successfully, would *close* a
-/// transaction: `COMMIT [WORK|TRANSACTION]` or `ROLLBACK [WORK|TRANSACTION|TO …]`.
+/// transaction: `COMMIT [WORK|TRANSACTION]` or bare `ROLLBACK`.
 pub fn stmt_closes_txn(stmt : String) -> Bool {
   let s = stmt.trim().to_string()
   if stmt_starts_with_keyword(s, "COMMIT") {

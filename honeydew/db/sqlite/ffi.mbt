@@ -51,3 +51,60 @@ extern "c" fn hd_sqlite_errmsg(
   buf : FixedArray[Byte],
   buf_len : Int,
 ) -> Int = "hd_sqlite_errmsg"
+
+///|
+/// Interrupt a long-running query on the given connection.
+/// Thread-safe: may be called from any thread.
+extern "c" fn hd_sqlite_interrupt(conn_id : Int) -> Unit = "hd_sqlite_interrupt"
+
+// ── async worker FFI ─────────────────────────────────────────────────────────
+
+///|
+/// Start an async query in a background thread. Returns 0 on success, -1 on failure.
+#borrow(sql)
+extern "c" fn hd_sqlite_async_start(
+  conn_id : Int,
+  sql : Bytes,
+  sql_len : Int,
+) -> Int = "hd_sqlite_async_start"
+
+///|
+/// Poll async worker status: 0=idle, 1=running, 2=done, 3=error.
+extern "c" fn hd_sqlite_async_poll() -> Int = "hd_sqlite_async_poll"
+
+///|
+extern "c" fn hd_sqlite_async_ncols() -> Int = "hd_sqlite_async_ncols"
+
+///|
+extern "c" fn hd_sqlite_async_nrows() -> Int = "hd_sqlite_async_nrows"
+
+///|
+extern "c" fn hd_sqlite_async_changes() -> Int = "hd_sqlite_async_changes"
+
+///|
+#borrow(buf)
+extern "c" fn hd_sqlite_async_colname(
+  col : Int,
+  buf : FixedArray[Byte],
+  buf_len : Int,
+) -> Int = "hd_sqlite_async_colname"
+
+///|
+#borrow(buf)
+extern "c" fn hd_sqlite_async_value(
+  row : Int,
+  col : Int,
+  buf : FixedArray[Byte],
+  buf_len : Int,
+) -> Int = "hd_sqlite_async_value"
+
+///|
+#borrow(buf)
+extern "c" fn hd_sqlite_async_errmsg(
+  buf : FixedArray[Byte],
+  buf_len : Int,
+) -> Int = "hd_sqlite_async_errmsg"
+
+///|
+/// Release async worker results and reset to idle.
+extern "c" fn hd_sqlite_async_finish() -> Unit = "hd_sqlite_async_finish"
