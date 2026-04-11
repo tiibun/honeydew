@@ -18,6 +18,12 @@ pub(all) enum Direction {
   Vertical
 }
 
+pub(all) enum HorizontalAnchor {
+  Left
+  Center
+  Right
+}
+
 pub struct Layout {
   direction : Direction
   constraints : Array[Constraint]
@@ -27,17 +33,43 @@ pub fn Layout::margin(Self, Int) -> Self
 pub fn Layout::new(Direction, Array[Constraint]) -> Self
 pub fn Layout::split(Self, Rect) -> Array[Rect]
 
+pub struct Placement {
+  width : PlacementSize
+  height : PlacementSize
+  h_anchor : HorizontalAnchor
+  v_anchor : VerticalAnchor
+  margin_x : Int
+  margin_y : Int
+}
+pub fn Placement::anchor(Self, HorizontalAnchor, VerticalAnchor) -> Self
+pub fn Placement::margin(Self, Int, Int) -> Self
+pub fn Placement::new(PlacementSize, PlacementSize) -> Self
+pub fn Placement::resolve(Self, Rect) -> Rect
+
+pub(all) enum PlacementSize {
+  Fixed(Int)
+  AtMost(Int)
+  Percent(Int)
+  Fill
+}
+
 pub struct Rect {
   x : Int
   y : Int
   width : Int
   height : Int
-} derive(Eq)
+} derive(Eq, Show)
 pub fn Rect::bottom(Self) -> Int
 pub fn Rect::inner(Self, Int) -> Self
 pub fn Rect::new(Int, Int, Int, Int) -> Self
 pub fn Rect::right(Self) -> Int
 pub fn Rect::zero() -> Self
+
+pub(all) enum VerticalAnchor {
+  Top
+  Middle
+  Bottom
+}
 
 // Type aliases
 
