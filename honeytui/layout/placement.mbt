@@ -39,6 +39,22 @@ pub fn Placement::new(
 }
 
 ///|
+pub fn Placement::centered(
+  width : PlacementSize,
+  height : PlacementSize,
+) -> Placement {
+  Placement::new(width, height).anchor(Center, Middle)
+}
+
+///|
+pub fn Placement::bottom_right(
+  width : PlacementSize,
+  height : PlacementSize,
+) -> Placement {
+  Placement::new(width, height).anchor(Right, Bottom)
+}
+
+///|
 pub fn Placement::anchor(
   self : Placement,
   h_anchor : HorizontalAnchor,

@@ -42,6 +42,8 @@ pub struct Placement {
   margin_y : Int
 }
 pub fn Placement::anchor(Self, HorizontalAnchor, VerticalAnchor) -> Self
+pub fn Placement::bottom_right(PlacementSize, PlacementSize) -> Self
+pub fn Placement::centered(PlacementSize, PlacementSize) -> Self
 pub fn Placement::margin(Self, Int, Int) -> Self
 pub fn Placement::new(PlacementSize, PlacementSize) -> Self
 pub fn Placement::resolve(Self, Rect) -> Rect
