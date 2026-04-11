@@ -5,7 +5,7 @@
 - [x] 6.Show columns under each table (name + type, as child nodes in the tree)
 - [x] 5.Show views separately from tables
 - [x] 4.Refresh schema without reconnecting
-- [ ] 7.Enter on a table auto-fills `SELECT * FROM <table> LIMIT 100` in the editor
+- [x] 7.Enter on a table auto-fills `SELECT * FROM <table> LIMIT 100` in the editor
 
 ## SQL Editor
 

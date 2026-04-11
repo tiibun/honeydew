@@ -115,7 +115,23 @@ async fn handle_key_idle(
             @app.ProfileList => state.load_selected_profile()
             @app.Form => state.do_connect()
           }
-        @app.Main => dispatch(state, key)
+        @app.Main =>
+          if state.focus == @app.Schema {
+            match state.schema_tree.selected_item() {
+              // depth-2 expandable node = table or view: fill editor with SELECT
+              Some(item) if item.depth == 2 && item.expandable => {
+                let sql = "SELECT * FROM \{item.label} LIMIT 100"
+                {
+                  ..state,
+                  sql_input: apply_highlight(state.sql_input.with_value(sql)),
+                  focus: @app.Editor,
+                }
+              }
+              _ => { ..state, schema_tree: state.schema_tree.handle_key(Enter) }
+            }
+          } else {
+            dispatch(state, key)
+          }
       }
     CtrlEnter =>
       match state.screen {
