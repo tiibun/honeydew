@@ -189,6 +189,13 @@ async fn handle_key_idle(
       }
     // Ctrl+D: disconnect and return to Connect screen (Main screen only)
     CtrlD => if state.screen == @app.Main { state.disconnect() } else { state }
+    // Ctrl+L: refresh schema tree (Main screen only)
+    CtrlL =>
+      if state.screen == @app.Main {
+        state.refresh_schema()
+      } else {
+        state
+      }
     // Transaction shortcuts (Main screen only)
     CtrlB =>
       if state.screen == @app.Main {

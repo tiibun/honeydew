@@ -111,6 +111,7 @@ pub fn render_help_overlay(
       " Ctrl+C           cancel running query\n" +
       " Ctrl+S           export results as CSV\n" +
       " Ctrl+D           disconnect (return to Connect)\n" +
+      " Ctrl+L           refresh schema browser\n" +
       " Ctrl+B           BEGIN transaction\n" +
       " Ctrl+M           COMMIT transaction\n" +
       " Ctrl+R           ROLLBACK transaction\n" +

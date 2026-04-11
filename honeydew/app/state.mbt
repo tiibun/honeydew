@@ -579,6 +579,24 @@ pub async fn AppState::do_connect(self : AppState) -> AppState {
 }
 
 ///|
+/// Re-query the database for the current table list and rebuild the schema tree.
+pub async fn AppState::refresh_schema(self : AppState) -> AppState {
+  match self.conn {
+    None => { ..self, status: "Error: not connected", show_error: false }
+    Some(conn) => {
+      let db_label = self.conn_form.database.value()
+      let tree = build_schema_tree(conn, db_label)
+      {
+        ..self,
+        schema_tree: tree,
+        status: "Schema refreshed",
+        show_error: false,
+      }
+    }
+  }
+}
+
+///|
 /// Close the current connection and return to the Connect screen.
 pub fn AppState::disconnect(self : AppState) -> AppState {
   match self.conn {
