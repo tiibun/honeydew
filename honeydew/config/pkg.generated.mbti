@@ -4,6 +4,10 @@ package "tiibun/honeydew/config"
 // Values
 pub fn config_dir() -> String
 
+pub fn copy_to_clipboard(String) -> Result[Unit, String]
+
+pub fn export_results_csv(Array[String], Array[Array[String]]) -> Result[String, String]
+
 pub fn keyring_available() -> Bool
 
 pub fn keyring_delete(String) -> Unit

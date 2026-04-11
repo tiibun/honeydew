@@ -70,6 +70,12 @@ int hd_sqlite_step(int stmt_id)
     return sqlite3_step(g_stmts[stmt_id]);
 }
 
+int hd_sqlite_changes(int conn_id)
+{
+    if (conn_id < 0 || conn_id >= MAX_CONNS || !g_conns[conn_id]) return 0;
+    return sqlite3_changes(g_conns[conn_id]);
+}
+
 int hd_sqlite_column_count(int stmt_id)
 {
     if (stmt_id < 0 || stmt_id >= MAX_STMTS || !g_stmts[stmt_id]) return 0;

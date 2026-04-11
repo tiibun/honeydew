@@ -17,6 +17,10 @@ pub async fn build_schema_tree(DbHandle, String) -> @widget.Tree
 
 pub fn connect_status(ConnPanel) -> String
 
+pub fn stmt_closes_txn(String) -> Bool
+
+pub fn stmt_opens_txn(String) -> Bool
+
 pub fn str_to_int(String, Int) -> Int
 
 // Errors
@@ -52,6 +56,7 @@ pub async fn AppState::do_connect(Self) -> Self
 pub fn AppState::export_results_csv(Self) -> Self
 pub fn AppState::handle_schema_click(Self, Int, Int, Int, Int) -> Self
 pub fn AppState::load_selected_profile(Self) -> Self
+pub fn AppState::menu_bar_left_label(Self) -> String
 pub fn AppState::navigate_profiles(Self, @terminal.Key) -> Self
 pub fn AppState::new(@async.TaskGroup[Unit]) -> Self
 pub fn AppState::profile_names(Self) -> Array[String]
@@ -61,6 +66,7 @@ pub fn AppState::record_query_history(Self, String) -> Self
 pub async fn AppState::rollback_transaction(Self) -> Self
 pub fn AppState::save_current_profile(Self) -> Self
 pub fn AppState::selected_schema_table(Self) -> String?
+pub fn AppState::sync_txn_flag_for_stmt(Self, String) -> Self
 
 pub(all) struct ConnForm {
   name : @widget.Input

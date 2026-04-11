@@ -35,6 +35,7 @@ pub fn SqliteConn::query(
   }
   let columns : Array[String] = []
   let rows : Array[Array[String]] = []
+  let affected_rows = if @db.is_write_statement(sql) { Some(0) } else { None }
   let buf : FixedArray[Byte] = FixedArray::make(4096, b'\x00')
   let first = hd_sqlite_step(stmt_id)
   if first == 100 {
@@ -53,10 +54,13 @@ pub fn SqliteConn::query(
   } else if first < 0 {
     hd_sqlite_finalize(stmt_id)
     return Err(errmsg(self.id))
+  } else if first == 101 && affected_rows is Some(_) {
+    hd_sqlite_finalize(stmt_id)
+    return Ok({ columns, rows, affected_rows: Some(hd_sqlite_changes(self.id)) })
   }
   // first == 101 (SQLITE_DONE) means no rows (e.g. INSERT/UPDATE)
   hd_sqlite_finalize(stmt_id)
-  Ok({ columns, rows })
+  Ok({ columns, rows, affected_rows })
 }
 
 ///|

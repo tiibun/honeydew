@@ -3,10 +3,16 @@ import {
   "tiibun/honeydew/db",
   "tiibun/honeydew/ui",
   "tiibun/honeytui",
+  "tiibun/honeytui/style",
   "tiibun/honeytui/terminal",
   "tiibun/honeytui/widget",
+  "moonbitlang/core/bench",
   "moonbitlang/async" @async,
 }
+
+import {
+  "tiibun/honeydew/db/sqlite" @sqlite,
+} for "wbtest"
 
 options(
   "is-main": true,

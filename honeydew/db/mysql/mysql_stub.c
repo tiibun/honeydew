@@ -47,6 +47,7 @@ typedef struct {
     MYSQL_FUNC(MYSQL_ROW,         mysql_fetch_row,     (MYSQL_RES *)) \
     MYSQL_FUNC(unsigned long *,   mysql_fetch_lengths, (MYSQL_RES *)) \
     MYSQL_FUNC(void,              mysql_data_seek,     (MYSQL_RES *, my_ulonglong)) \
+    MYSQL_FUNC(my_ulonglong,      mysql_affected_rows, (MYSQL *)) \
     MYSQL_FUNC(const char *,      mysql_error,         (MYSQL *))
 
 #define MYSQL_FUNC(ret, name, params) static ret (*fn_##name) params;
@@ -170,6 +171,12 @@ int hd_mysql_exec(int conn_id, const char *sql, int len)
     }
     if (res) fn_mysql_free_result(res);
     return -1;
+}
+
+int hd_mysql_affected_rows(int conn_id)
+{
+    if (conn_id < 0 || conn_id >= MAX_CONNS || !g_conns[conn_id]) return 0;
+    return (int)fn_mysql_affected_rows(g_conns[conn_id]);
 }
 
 void hd_mysql_result_free(int res_id)

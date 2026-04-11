@@ -99,6 +99,29 @@ int hd_file_write(const char *path, int path_len, const char *data, int data_len
     return (n == data_len) ? 0 : -1;
 }
 
+int hd_copy_to_clipboard(const char *data, int data_len) {
+#ifdef __APPLE__
+    const char *cmd = "pbcopy";
+#elif defined(_WIN32)
+    const char *cmd = "clip";
+#else
+    const char *cmd = "xclip -selection clipboard";
+#endif
+    FILE *pipe = popen(cmd, "w");
+    if (!pipe) return -1;
+    int n = (int)fwrite(data, 1, data_len, pipe);
+    int rc = pclose(pipe);
+#ifndef __APPLE__
+    if ((n != data_len || rc != 0) && strcmp(cmd, "xclip -selection clipboard") == 0) {
+        pipe = popen("xsel --clipboard --input", "w");
+        if (!pipe) return -1;
+        n = (int)fwrite(data, 1, data_len, pipe);
+        rc = pclose(pipe);
+    }
+#endif
+    return (n == data_len && rc == 0) ? 0 : -1;
+}
+
 /* ------------------------------------------------------------------ */
 /* Shell single-quote helper (POSIX only)                               */
 /* ------------------------------------------------------------------ */

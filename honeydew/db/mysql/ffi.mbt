@@ -31,6 +31,9 @@ extern "c" fn hd_mysql_errmsg(
 extern "c" fn hd_mysql_exec(conn_id : Int, sql : Bytes, len : Int) -> Int = "hd_mysql_exec"
 
 ///|
+extern "c" fn hd_mysql_affected_rows(conn_id : Int) -> Int = "hd_mysql_affected_rows"
+
+///|
 extern "c" fn hd_mysql_result_free(res_id : Int) -> Unit = "hd_mysql_result_free"
 
 ///|

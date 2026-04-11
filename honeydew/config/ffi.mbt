@@ -31,6 +31,10 @@ extern "c" fn hd_file_write(
 ) -> Int = "hd_file_write"
 
 ///|
+#borrow(data)
+extern "c" fn hd_copy_to_clipboard(data : Bytes, data_len : Int) -> Int = "hd_copy_to_clipboard"
+
+///|
 #borrow(svc, acct, out)
 extern "c" fn hd_keyring_get(
   svc : Bytes,

@@ -571,9 +571,107 @@ pub fn AppState::clear_query_history_nav(self : AppState) -> AppState {
   { ..self, history_index: None, history_draft: None }
 }
 
+// ── Transaction-classification helpers ────────────────────────────────────────
+
+///|
+// Uppercase the first `n` characters of `s` (ASCII letters only).
+fn to_upper_ascii_prefix(s : String, n : Int) -> String {
+  let sb = StringBuilder::new()
+  let mut i = 0
+  for c in s.iter() {
+    if i >= n {
+      break
+    }
+    sb.write_char(
+      if c >= 'a' && c <= 'z' {
+        Int::unsafe_to_char(c.to_int() - 32)
+      } else {
+        c
+      },
+    )
+    i = i + 1
+  }
+  sb.to_string()
+}
+
+///|
+// Returns true when `stmt` (trimmed) begins with `upper_keyword` (already
+// uppercase) followed by a non-identifier character or end of string.
+// This avoids false positives such as "ROLLBACKUP" matching "ROLLBACK".
+fn stmt_starts_with_keyword(stmt : String, upper_keyword : String) -> Bool {
+  let klen = upper_keyword.length()
+  if stmt.length() < klen {
+    return false
+  }
+  if to_upper_ascii_prefix(stmt, klen) != upper_keyword {
+    return false
+  }
+  match stmt.get_char(klen) {
+    None => true
+    Some(c) =>
+      !(c is ('A'..='Z') || c is ('a'..='z') || c is ('0'..='9') || c == '_')
+  }
+}
+
+///|
+/// Returns `true` when `stmt`, if executed successfully, would *open* a
+/// transaction: `BEGIN [DEFERRED|IMMEDIATE|EXCLUSIVE]` or `START TRANSACTION`.
+pub fn stmt_opens_txn(stmt : String) -> Bool {
+  let s = stmt.trim().to_string()
+  stmt_starts_with_keyword(s, "BEGIN") ||
+  stmt_starts_with_keyword(s, "START TRANSACTION")
+}
+
+///|
+/// Returns `true` when `stmt`, if executed successfully, would *close* a
+/// transaction: `COMMIT [WORK|TRANSACTION]` or `ROLLBACK [WORK|TRANSACTION|TO …]`.
+pub fn stmt_closes_txn(stmt : String) -> Bool {
+  let s = stmt.trim().to_string()
+  stmt_starts_with_keyword(s, "COMMIT") ||
+  stmt_starts_with_keyword(s, "ROLLBACK")
+}
+
+///|
+/// Update `in_transaction` based on a successfully-executed statement.
+/// Call this after every successful query execution to keep the flag in sync
+/// when the user issues BEGIN / COMMIT / ROLLBACK directly in the editor.
+pub fn AppState::sync_txn_flag_for_stmt(
+  self : AppState,
+  stmt : String,
+) -> AppState {
+  if stmt_opens_txn(stmt) {
+    { ..self, in_transaction: true }
+  } else if stmt_closes_txn(stmt) {
+    { ..self, in_transaction: false }
+  } else {
+    self
+  }
+}
+
+///|
+/// Returns the left-side text for the menu bar.
+/// Displays `[TXN]` when a transaction is active so that `render_menu_bar`
+/// and tests share the same label logic.
+pub fn AppState::menu_bar_left_label(self : AppState) -> String {
+  if self.in_transaction {
+    " honeydew  [TXN] "
+  } else {
+    " honeydew "
+  }
+}
+
 ///|
 /// Issue BEGIN to the database and mark the session as in-transaction.
+/// Reports a clear status (without touching the database) when already inside
+/// a transaction.
 pub async fn AppState::begin_transaction(self : AppState) -> AppState {
+  if self.in_transaction {
+    return {
+      ..self,
+      status: "Already in a transaction — use Ctrl+M to COMMIT or Ctrl+R to ROLLBACK",
+      show_error: false,
+    }
+  }
   match self.conn {
     None => { ..self, status: "Error: not connected", show_error: false }
     Some(conn) =>
@@ -592,7 +690,16 @@ pub async fn AppState::begin_transaction(self : AppState) -> AppState {
 
 ///|
 /// Issue COMMIT to the database and clear the in-transaction flag.
+/// Reports a clear status (without touching the database) when not inside
+/// a transaction.
 pub async fn AppState::commit_transaction(self : AppState) -> AppState {
+  if !self.in_transaction {
+    return {
+      ..self,
+      status: "Not in a transaction — use Ctrl+B to BEGIN",
+      show_error: false,
+    }
+  }
   match self.conn {
     None => { ..self, status: "Error: not connected", show_error: false }
     Some(conn) =>
@@ -611,7 +718,16 @@ pub async fn AppState::commit_transaction(self : AppState) -> AppState {
 
 ///|
 /// Issue ROLLBACK to the database and clear the in-transaction flag.
+/// Reports a clear status (without touching the database) when not inside
+/// a transaction.
 pub async fn AppState::rollback_transaction(self : AppState) -> AppState {
+  if !self.in_transaction {
+    return {
+      ..self,
+      status: "Not in a transaction — use Ctrl+B to BEGIN",
+      show_error: false,
+    }
+  }
   match self.conn {
     None => { ..self, status: "Error: not connected", show_error: false }
     Some(conn) =>

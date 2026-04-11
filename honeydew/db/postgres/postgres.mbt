@@ -37,6 +37,7 @@ pub async fn PgConn::query(
   }
   let mut columns : Array[String] = []
   let rows : Array[Array[String]] = []
+  let mut affected_rows : Int? = None
   try {
     loop stream.next() {
       None => break
@@ -57,13 +58,16 @@ pub async fn PgConn::query(
             )
             continue stream.next()
           }
-          @pg.SimpleQueryMessage::CommandComplete(_) => continue stream.next()
+          @pg.SimpleQueryMessage::CommandComplete(tag) => {
+            affected_rows = parse_affected_rows(tag)
+            continue stream.next()
+          }
         }
     }
   } catch {
     err => return Err(err.to_string())
   }
-  Ok({ columns, rows })
+  Ok({ columns, rows, affected_rows })
 }
 
 ///|
@@ -79,6 +83,37 @@ pub async fn PgConn::tables(self : PgConn) -> Result[Array[String], String] {
       )
     Err(e) => Err(e)
   }
+}
+
+///|
+fn parse_affected_rows(tag : String) -> Int? {
+  if !@db.is_write_statement(tag) {
+    return None
+  }
+  let mut end = tag.length() - 1
+  while end >= 0 && is_ascii_digit(tag, end) {
+    end -= 1
+  }
+  if end == tag.length() - 1 {
+    None
+  } else {
+    Some(parse_ascii_int(tag[end + 1:].to_string()))
+  }
+}
+
+///|
+fn is_ascii_digit(s : String, idx : Int) -> Bool {
+  let c = s[idx].to_int()
+  c >= '0'.to_int() && c <= '9'.to_int()
+}
+
+///|
+fn parse_ascii_int(s : String) -> Int {
+  let mut value = 0
+  for c in s.iter() {
+    value = value * 10 + (c.to_int() - '0'.to_int())
+  }
+  value
 }
 
 ///|

@@ -302,7 +302,7 @@ async fn run_query_at_cursor(state : @app.AppState) -> @app.AppState {
       match (conn.query(stmt) catch { err => Err(err.to_string()) }) {
         Ok(result) => {
           let tbl = @widget.Table::new(result.columns, result.rows)
-          {
+          let next = {
             ..state,
             results: tbl,
             status: with_execution_time(
@@ -311,6 +311,7 @@ async fn run_query_at_cursor(state : @app.AppState) -> @app.AppState {
             ),
             show_error: false,
           }
+          next.sync_txn_flag_for_stmt(stmt)
         }
         Err(msg) =>
           {
@@ -344,6 +345,7 @@ async fn run_all_queries(state : @app.AppState) -> @app.AppState {
       let mut has_affected_rows = false
       let mut stmt_count = 0
       let mut error : String? = None
+      let mut current_in_txn = state.in_transaction
       for stmt in stmts {
         match (conn.query(stmt) catch { err => Err(err.to_string()) }) {
           Ok(result) => {
@@ -357,6 +359,11 @@ async fn run_all_queries(state : @app.AppState) -> @app.AppState {
               None => ()
             }
             stmt_count = stmt_count + 1
+            if @app.stmt_opens_txn(stmt) {
+              current_in_txn = true
+            } else if @app.stmt_closes_txn(stmt) {
+              current_in_txn = false
+            }
           }
           Err(msg) => {
             error = Some(msg)
@@ -368,6 +375,7 @@ async fn run_all_queries(state : @app.AppState) -> @app.AppState {
         Some(msg) =>
           {
             ..state,
+            in_transaction: current_in_txn,
             status: with_execution_time(
               "Error: \{msg}",
               @bench.monotonic_clock_end(started),
@@ -380,6 +388,7 @@ async fn run_all_queries(state : @app.AppState) -> @app.AppState {
           )
           {
             ..state,
+            in_transaction: current_in_txn,
             results: last_result,
             status: with_execution_time(
               msg,

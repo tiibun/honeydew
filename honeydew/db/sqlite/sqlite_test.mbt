@@ -70,3 +70,21 @@ test "sqlite columns" {
   assert_eq(cols[1].name, "name")
   conn.close()
 }
+
+///|
+test "sqlite query reports affected rows for update" {
+  let conn = match @db_sqlite.SqliteConn::open(":memory:") {
+    Ok(c) => c
+    Err(e) => fail("open failed: \{e}")
+  }
+  let _ = conn.query("CREATE TABLE users (id INTEGER, name TEXT)")
+  let _ = conn.query("INSERT INTO users VALUES (1, 'Ada')")
+  let result = match
+    conn.query("UPDATE users SET name = 'Grace' WHERE id = 1") {
+    Ok(r) => r
+    Err(e) => fail("update failed: \{e}")
+  }
+  assert_eq(result.affected_rows, Some(1))
+  assert_eq(result.rows.length(), 0)
+  conn.close()
+}

@@ -18,11 +18,7 @@ fn fill_row(left : String, right : String, width : Int) -> String {
 pub fn render_menu_bar(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   let area = frame.size()
   let bar_area = @layout.Rect::new(area.x, area.y, area.width, 1)
-  let left = if state.in_transaction {
-    " honeydew  [TXN] "
-  } else {
-    " honeydew "
-  }
+  let left = state.menu_bar_left_label()
   let right = " ?=Help  Ctrl+Q=Quit "
   let text = fill_row(left, right, area.width)
   let bar_style = if state.in_transaction {

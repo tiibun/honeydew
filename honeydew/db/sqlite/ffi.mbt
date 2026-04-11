@@ -21,6 +21,9 @@ extern "c" fn hd_sqlite_finalize(stmt_id : Int) -> Unit = "hd_sqlite_finalize"
 extern "c" fn hd_sqlite_step(stmt_id : Int) -> Int = "hd_sqlite_step"
 
 ///|
+extern "c" fn hd_sqlite_changes(conn_id : Int) -> Int = "hd_sqlite_changes"
+
+///|
 extern "c" fn hd_sqlite_column_count(stmt_id : Int) -> Int = "hd_sqlite_column_count"
 
 ///|

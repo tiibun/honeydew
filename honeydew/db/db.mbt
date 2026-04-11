@@ -11,11 +11,26 @@ pub(all) struct ColumnInfo {
 pub(all) struct QueryResult {
   columns : Array[String]
   rows : Array[Array[String]]
+  affected_rows : Int?
 }
 
 ///|
 pub fn QueryResult::empty() -> QueryResult {
-  { columns: [], rows: [] }
+  { columns: [], rows: [], affected_rows: None }
+}
+
+///|
+pub fn is_write_statement(sql : String) -> Bool {
+  let trimmed = sql.trim_start().to_string().to_upper()
+  starts_with_keyword(trimmed, "INSERT") ||
+  starts_with_keyword(trimmed, "UPDATE") ||
+  starts_with_keyword(trimmed, "DELETE")
+}
+
+///|
+fn starts_with_keyword(sql : String, keyword : String) -> Bool {
+  let len = keyword.length()
+  sql.length() >= len && sql[:len].to_string() == keyword
 }
 
 ///|

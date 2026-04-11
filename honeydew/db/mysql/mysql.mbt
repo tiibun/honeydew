@@ -48,6 +48,11 @@ pub fn MysqlConn::query(
   if res_id < 0 {
     return Err(mysql_errmsg(self.id))
   }
+  let affected_rows = if @db.is_write_statement(sql) {
+    Some(hd_mysql_affected_rows(self.id))
+  } else {
+    None
+  }
   let buf : FixedArray[Byte] = FixedArray::make(4096, b'\x00')
   let nrows = hd_mysql_nrows(res_id)
   let ncols = hd_mysql_nfields(res_id)
@@ -66,7 +71,7 @@ pub fn MysqlConn::query(
     rows.push(r)
   }
   hd_mysql_result_free(res_id)
-  Ok({ columns, rows })
+  Ok({ columns, rows, affected_rows })
 }
 
 ///|

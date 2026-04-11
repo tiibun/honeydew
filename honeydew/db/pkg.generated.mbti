@@ -4,6 +4,8 @@ package "tiibun/honeydew/db"
 // Values
 pub fn fixed_bytes_to_str(FixedArray[Byte], Int) -> String
 
+pub fn is_write_statement(String) -> Bool
+
 pub fn str_to_bytes(String) -> Bytes
 
 // Errors
@@ -17,6 +19,7 @@ pub(all) struct ColumnInfo {
 pub(all) struct QueryResult {
   columns : Array[String]
   rows : Array[Array[String]]
+  affected_rows : Int?
 }
 pub fn QueryResult::empty() -> Self
 

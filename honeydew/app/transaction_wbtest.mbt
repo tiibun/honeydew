@@ -7,9 +7,42 @@ async test "AppState::new has in_transaction false by default" {
 }
 
 ///|
-async test "AppState::begin_transaction when not connected" {
+// Guard: commit/rollback short-circuit before checking connection when no txn.
+async test "AppState::commit_transaction guard fires when not in transaction" {
   @async.with_task_group(group => {
     let state = AppState::new(group)
+    let s = state.commit_transaction()
+    assert_eq(s.in_transaction, false)
+    assert_true(s.status.contains("Not in a transaction"))
+  })
+}
+
+///|
+async test "AppState::rollback_transaction guard fires when not in transaction" {
+  @async.with_task_group(group => {
+    let state = AppState::new(group)
+    let s = state.rollback_transaction()
+    assert_eq(s.in_transaction, false)
+    assert_true(s.status.contains("Not in a transaction"))
+  })
+}
+
+///|
+// Guard: begin short-circuits when already in a transaction.
+async test "AppState::begin_transaction guard fires when already in transaction" {
+  @async.with_task_group(group => {
+    let state = { ..AppState::new(group), in_transaction: true }
+    let s = state.begin_transaction()
+    assert_eq(s.in_transaction, true)
+    assert_true(s.status.contains("Already in a transaction"))
+  })
+}
+
+///|
+// "Not connected" paths require bypassing the guard (in_transaction must match).
+async test "AppState::begin_transaction when not connected" {
+  @async.with_task_group(group => {
+    let state = AppState::new(group) // in_transaction: false → guard not hit
     let s = state.begin_transaction()
     assert_eq(s.in_transaction, false)
     assert_true(s.status.contains("Error"))
@@ -17,21 +50,21 @@ async test "AppState::begin_transaction when not connected" {
 }
 
 ///|
-async test "AppState::commit_transaction when not connected" {
+async test "AppState::commit_transaction when in transaction but not connected" {
   @async.with_task_group(group => {
-    let state = AppState::new(group)
+    let state = { ..AppState::new(group), in_transaction: true }
     let s = state.commit_transaction()
-    assert_eq(s.in_transaction, false)
+    assert_eq(s.in_transaction, true) // unchanged on error
     assert_true(s.status.contains("Error"))
   })
 }
 
 ///|
-async test "AppState::rollback_transaction when not connected" {
+async test "AppState::rollback_transaction when in transaction but not connected" {
   @async.with_task_group(group => {
-    let state = AppState::new(group)
+    let state = { ..AppState::new(group), in_transaction: true }
     let s = state.rollback_transaction()
-    assert_eq(s.in_transaction, false)
+    assert_eq(s.in_transaction, true) // unchanged on error
     assert_true(s.status.contains("Error"))
   })
 }
@@ -88,9 +121,8 @@ async test "begin then rollback toggles in_transaction with real SQLite" {
 }
 
 ///|
-/// Verify that in_transaction==true drives the visible indicator label.
-/// The menu bar renders " honeydew  [TXN] " when in_transaction is true.
-async test "in_transaction flag drives menu bar indicator text" {
+/// Verify that `menu_bar_left_label` reflects the transaction state.
+async test "menu_bar_left_label returns correct label for transaction state" {
   @async.with_task_group(async fn(group) {
     let conn = match @sqlite.SqliteConn::open(":memory:") {
       Ok(c) => c
@@ -101,18 +133,62 @@ async test "in_transaction flag drives menu bar indicator text" {
       conn: Some(Sqlite(conn)),
       screen: Main,
     }
-    let idle_label = if state.in_transaction { "[TXN]" } else { "honeydew" }
-    assert_eq(idle_label, "honeydew")
+    assert_true(state.menu_bar_left_label().contains("honeydew"))
+    assert_true(!state.menu_bar_left_label().contains("[TXN]"))
     let after_begin = state.begin_transaction()
-    let txn_label = if after_begin.in_transaction {
-      "[TXN]"
-    } else {
-      "honeydew"
-    }
-    assert_eq(txn_label, "[TXN]")
+    assert_true(after_begin.menu_bar_left_label().contains("[TXN]"))
     match after_begin.conn {
       Some(h) => h.close()
       None => ()
     }
+  })
+}
+
+///|
+/// `stmt_opens_txn` classifies statements correctly.
+test "stmt_opens_txn recognises BEGIN and START TRANSACTION" {
+  assert_eq(stmt_opens_txn("BEGIN"), true)
+  assert_eq(stmt_opens_txn("begin"), true)
+  assert_eq(stmt_opens_txn("BEGIN DEFERRED"), true)
+  assert_eq(stmt_opens_txn("START TRANSACTION"), true)
+  assert_eq(stmt_opens_txn("start transaction"), true)
+  assert_eq(stmt_opens_txn("  BEGIN  "), true)
+  assert_eq(stmt_opens_txn("COMMIT"), false)
+  assert_eq(stmt_opens_txn("ROLLBACK"), false)
+  assert_eq(stmt_opens_txn("SELECT 1"), false)
+  assert_eq(stmt_opens_txn("BEGINNERS SELECT"), false)
+}
+
+///|
+/// `stmt_closes_txn` classifies statements correctly.
+test "stmt_closes_txn recognises COMMIT and ROLLBACK" {
+  assert_eq(stmt_closes_txn("COMMIT"), true)
+  assert_eq(stmt_closes_txn("commit"), true)
+  assert_eq(stmt_closes_txn("COMMIT WORK"), true)
+  assert_eq(stmt_closes_txn("ROLLBACK"), true)
+  assert_eq(stmt_closes_txn("rollback"), true)
+  assert_eq(stmt_closes_txn("ROLLBACK TO SAVEPOINT sp"), true)
+  assert_eq(stmt_closes_txn("BEGIN"), false)
+  assert_eq(stmt_closes_txn("SELECT 1"), false)
+  assert_eq(stmt_closes_txn("ROLLBACKUP"), false)
+}
+
+///|
+/// `sync_txn_flag_for_stmt` updates the flag for transaction statements.
+async test "sync_txn_flag_for_stmt updates in_transaction correctly" {
+  @async.with_task_group(group => {
+    let idle = AppState::new(group)
+    assert_eq(idle.in_transaction, false)
+    let after_begin = idle.sync_txn_flag_for_stmt("BEGIN")
+    assert_eq(after_begin.in_transaction, true)
+    let after_commit = after_begin.sync_txn_flag_for_stmt("COMMIT")
+    assert_eq(after_commit.in_transaction, false)
+    let after_begin2 = after_commit.sync_txn_flag_for_stmt("START TRANSACTION")
+    assert_eq(after_begin2.in_transaction, true)
+    let after_rollback = after_begin2.sync_txn_flag_for_stmt("ROLLBACK")
+    assert_eq(after_rollback.in_transaction, false)
+    // Non-transaction statement must not change the flag.
+    let after_select = after_rollback.sync_txn_flag_for_stmt("SELECT 1")
+    assert_eq(after_select.in_transaction, false)
   })
 }

@@ -87,6 +87,7 @@ pub struct Table {
   columns : Array[String]
   rows : Array[Array[String]]
   selected_row : Int
+  selected_col : Int
   row_offset : Int
   col_offset : Int
   block : Block?
@@ -98,6 +99,7 @@ pub fn Table::block(Self, Block) -> Self
 pub fn Table::handle_key(Self, @terminal.Key) -> Self
 pub fn Table::header_style(Self, @style.Style) -> Self
 pub fn Table::new(Array[String], Array[Array[String]]) -> Self
+pub fn Table::selected_cell(Self) -> String?
 pub fn Table::selected_style(Self, @style.Style) -> Self
 pub impl Widget for Table
 
@@ -107,19 +109,24 @@ pub struct TextArea {
   cursor_col : Int
   scroll_top : Int
   highlight : (Int, Int)?
+  styled_lines : Array[Array[(String, @style.Style)]]?
   focused : Bool
   style : @style.Style
   block : Block?
 }
 pub fn TextArea::block(Self, Block) -> Self
 pub fn TextArea::clear_highlight(Self) -> Self
+pub fn TextArea::clear_styled_lines(Self) -> Self
+pub fn TextArea::cursor_line_index(Self) -> Int
 pub fn TextArea::cursor_pos(Self) -> Int
 pub fn TextArea::focused(Self, Bool) -> Self
 pub fn TextArea::handle_key(Self, @terminal.Key) -> Self
+pub fn TextArea::line_count(Self) -> Int
 pub fn TextArea::new() -> Self
 pub fn TextArea::style(Self, @style.Style) -> Self
 pub fn TextArea::value(Self) -> String
 pub fn TextArea::with_highlight(Self, Int, Int) -> Self
+pub fn TextArea::with_styled_lines(Self, Array[Array[(String, @style.Style)]]) -> Self
 pub fn TextArea::with_value(Self, String) -> Self
 pub impl Widget for TextArea
 

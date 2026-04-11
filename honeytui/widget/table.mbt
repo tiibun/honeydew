@@ -6,6 +6,7 @@ pub struct Table {
   columns : Array[String]
   rows : Array[Array[String]]
   selected_row : Int
+  selected_col : Int
   row_offset : Int
   col_offset : Int
   block : Block?
@@ -23,6 +24,7 @@ pub fn Table::new(
     columns,
     rows,
     selected_row: 0,
+    selected_col: 0,
     row_offset: 0,
     col_offset: 0,
     block: None,
@@ -50,6 +52,19 @@ pub fn Table::selected_style(self : Table, style : @style.Style) -> Table {
 }
 
 ///|
+pub fn Table::selected_cell(self : Table) -> String? {
+  if self.selected_row < 0 || self.selected_row >= self.rows.length() {
+    return None
+  }
+  let row = self.rows[self.selected_row]
+  if self.selected_col < 0 || self.selected_col >= row.length() {
+    None
+  } else {
+    Some(row[self.selected_col])
+  }
+}
+
+///|
 /// Handle key events for navigation.
 pub fn Table::handle_key(self : Table, key : @terminal.Key) -> Table {
   let nrows = self.rows.length()
@@ -69,17 +84,18 @@ pub fn Table::handle_key(self : Table, key : @terminal.Key) -> Table {
       { ..self, selected_row: s }
     }
     Left => {
-      let c = if self.col_offset > 0 { self.col_offset - 1 } else { 0 }
-      { ..self, col_offset: c }
+      let c = if self.selected_col > 0 { self.selected_col - 1 } else { 0 }
+      let off = if c < self.col_offset { c } else { self.col_offset }
+      { ..self, selected_col: c, col_offset: off }
     }
     Right => {
-      let max_off = if ncols > 1 { ncols - 1 } else { 0 }
-      let c = if self.col_offset < max_off {
-        self.col_offset + 1
+      let max_col = if ncols > 0 { ncols - 1 } else { 0 }
+      let c = if self.selected_col < max_col {
+        self.selected_col + 1
       } else {
-        self.col_offset
+        self.selected_col
       }
-      { ..self, col_offset: c }
+      { ..self, selected_col: c }
     }
     Home => { ..self, selected_row: 0, row_offset: 0 }
     End => { ..self, selected_row: if nrows > 0 { nrows - 1 } else { 0 } }
@@ -103,11 +119,18 @@ pub impl Widget for Table with render(self, area, buf) {
   if ncols == 0 {
     return
   }
+  let col_offset = adjust_col_offset(
+    self.columns,
+    self.rows,
+    self.col_offset,
+    self.selected_col,
+    inner.width,
+  )
   // Compute visible columns starting from col_offset
   let visible_cols = compute_col_widths(
     self.columns,
     self.rows,
-    self.col_offset,
+    col_offset,
     inner.width,
   )
   // Header row
@@ -117,9 +140,11 @@ pub impl Widget for Table with render(self, area, buf) {
     inner.y,
     inner.width,
     self.columns,
-    self.col_offset,
+    col_offset,
     visible_cols,
     self.header_style,
+    None,
+    self.selected_style,
   )
   // Data rows (inner.height - 1 rows available after header)
   let row_area_h = inner.height - 1
@@ -136,22 +161,54 @@ pub impl Widget for Table with render(self, area, buf) {
   for i = 0; i < row_area_h && row_offset + i < nrows; i = i + 1 {
     let row_idx = row_offset + i
     let row = self.rows[row_idx]
-    let style = if row_idx == self.selected_row {
-      self.selected_style
-    } else {
-      self.style
-    }
     render_row(
       buf,
       inner.x,
       inner.y + 1 + i,
       inner.width,
       row,
-      self.col_offset,
+      col_offset,
       visible_cols,
-      style,
+      self.style,
+      if row_idx == self.selected_row {
+        Some(self.selected_col)
+      } else {
+        None
+      },
+      self.selected_style,
     )
   }
+}
+
+///|
+fn adjust_col_offset(
+  columns : Array[String],
+  rows : Array[Array[String]],
+  col_offset : Int,
+  selected_col : Int,
+  available : Int,
+) -> Int {
+  let base = if selected_col < col_offset { selected_col } else { col_offset }
+  let visible = compute_col_widths(columns, rows, base, available)
+  if is_visible_column(visible, selected_col) {
+    base
+  } else {
+    selected_col
+  }
+}
+
+///|
+fn is_visible_column(
+  visible_cols : Array[(Int, Int)],
+  selected_col : Int,
+) -> Bool {
+  for _, item in visible_cols {
+    let (col_idx, _) = item
+    if col_idx == selected_col {
+      return true
+    }
+  }
+  false
 }
 
 ///|
@@ -209,6 +266,8 @@ fn render_row(
   col_offset : Int,
   visible_cols : Array[(Int, Int)],
   style : @style.Style,
+  selected_col : Int?,
+  selected_style : @style.Style,
 ) -> Unit {
   let sep_style = @style.Style::default().fg(@style.BrightBlack)
   let mut cx = x
@@ -228,7 +287,11 @@ fn render_row(
       let pad = col_w - raw.length()
       "\{raw}\{String::make(pad, ' ')}"
     }
-    buf.set_string(cx, y, cell_text, style)
+    let cell_style = match selected_col {
+      Some(selected) => if col_idx == selected { selected_style } else { style }
+      None => style
+    }
+    buf.set_string(cx, y, cell_text, cell_style)
     cx = cx + col_w
   }
   // Fill remaining width with spaces (clears stale content)

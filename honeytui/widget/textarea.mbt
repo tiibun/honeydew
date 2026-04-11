@@ -12,6 +12,8 @@ pub struct TextArea {
   scroll_top : Int
   /// Line range [start, end] (inclusive) to render with a highlight background.
   highlight : (Int, Int)?
+  /// Optional styled segments for each line.
+  styled_lines : Array[Array[(String, @style.Style)]]?
   focused : Bool
   style : @style.Style
   block : Block?
@@ -25,6 +27,7 @@ pub fn TextArea::new() -> TextArea {
     cursor_col: 0,
     scroll_top: 0,
     highlight: None,
+    styled_lines: None,
     focused: false,
     style: @style.Style::default(),
     block: None,
@@ -35,7 +38,13 @@ pub fn TextArea::new() -> TextArea {
 pub fn TextArea::with_value(self : TextArea, text : String) -> TextArea {
   let lines = split_lines(text)
   let last = lines.length() - 1
-  { ..self, lines, cursor_line: last, cursor_col: lines[last].length() }
+  {
+    ..self,
+    lines,
+    cursor_line: last,
+    cursor_col: lines[last].length(),
+    styled_lines: None,
+  }
 }
 
 ///|
@@ -69,9 +78,32 @@ pub fn TextArea::clear_highlight(self : TextArea) -> TextArea {
 }
 
 ///|
+pub fn TextArea::with_styled_lines(
+  self : TextArea,
+  styled_lines : Array[Array[(String, @style.Style)]],
+) -> TextArea {
+  { ..self, styled_lines: Some(styled_lines) }
+}
+
+///|
+pub fn TextArea::clear_styled_lines(self : TextArea) -> TextArea {
+  { ..self, styled_lines: None }
+}
+
+///|
 /// Return the full text content (lines joined by newlines).
 pub fn TextArea::value(self : TextArea) -> String {
   self.lines.join("\n")
+}
+
+///|
+pub fn TextArea::cursor_line_index(self : TextArea) -> Int {
+  self.cursor_line
+}
+
+///|
+pub fn TextArea::line_count(self : TextArea) -> Int {
+  self.lines.length()
 }
 
 ///|
@@ -110,7 +142,12 @@ fn TextArea::insert_char(self : TextArea, c : Char) -> TextArea {
   let new_line = "\{left}\{c}\{right}"
   let new_lines = copy_lines(self.lines)
   new_lines[self.cursor_line] = new_line
-  { ..self, lines: new_lines, cursor_col: self.cursor_col + 1 }
+  {
+    ..self,
+    lines: new_lines,
+    cursor_col: self.cursor_col + 1,
+    styled_lines: None,
+  }
 }
 
 ///|
@@ -127,7 +164,13 @@ fn TextArea::insert_newline(self : TextArea) -> TextArea {
       new_lines.push(self.lines[i])
     }
   }
-  { ..self, lines: new_lines, cursor_line: self.cursor_line + 1, cursor_col: 0 }
+  {
+    ..self,
+    lines: new_lines,
+    cursor_line: self.cursor_line + 1,
+    cursor_col: 0,
+    styled_lines: None,
+  }
 }
 
 ///|
@@ -138,7 +181,12 @@ fn TextArea::delete_backward(self : TextArea) -> TextArea {
     let right = line[self.cursor_col:].to_string()
     let new_lines = copy_lines(self.lines)
     new_lines[self.cursor_line] = "\{left}\{right}"
-    { ..self, lines: new_lines, cursor_col: self.cursor_col - 1 }
+    {
+      ..self,
+      lines: new_lines,
+      cursor_col: self.cursor_col - 1,
+      styled_lines: None,
+    }
   } else if self.cursor_line > 0 {
     // Merge with previous line
     let prev = self.lines[self.cursor_line - 1]
@@ -160,6 +208,7 @@ fn TextArea::delete_backward(self : TextArea) -> TextArea {
       lines: new_lines,
       cursor_line: self.cursor_line - 1,
       cursor_col: new_col,
+      styled_lines: None,
     }
   } else {
     self
@@ -174,7 +223,7 @@ fn TextArea::delete_forward(self : TextArea) -> TextArea {
     let right = line[self.cursor_col + 1:].to_string()
     let new_lines = copy_lines(self.lines)
     new_lines[self.cursor_line] = "\{left}\{right}"
-    { ..self, lines: new_lines }
+    { ..self, lines: new_lines, styled_lines: None }
   } else if self.cursor_line < self.lines.length() - 1 {
     // Merge next line into current
     let curr = self.lines[self.cursor_line]
@@ -190,7 +239,7 @@ fn TextArea::delete_forward(self : TextArea) -> TextArea {
         new_lines.push(self.lines[i])
       }
     }
-    { ..self, lines: new_lines }
+    { ..self, lines: new_lines, styled_lines: None }
   } else {
     self
   }
@@ -263,17 +312,45 @@ pub impl Widget for TextArea with render(self, area, buf) {
     let line_idx = scroll_top + row
     let line = self.lines[line_idx]
     let y = inner.y + row
-    // Determine line style (highlight or normal)
-    let line_style = match self.highlight {
-      Some((s, e)) =>
-        if line_idx >= s && line_idx <= e {
-          hl_style
-        } else {
-          self.style
-        }
-      None => self.style
+    let is_highlighted = match self.highlight {
+      Some((s, e)) => line_idx >= s && line_idx <= e
+      None => false
     }
-    buf.set_string(inner.x, y, line, line_style)
+    let line_style = if is_highlighted { hl_style } else { self.style }
+    match self.styled_lines {
+      Some(styled_lines) =>
+        if line_idx < styled_lines.length() {
+          render_segments(
+            buf,
+            inner.x,
+            y,
+            inner.width,
+            styled_lines[line_idx],
+            line_style,
+            is_highlighted,
+          )
+        } else {
+          render_segments(
+            buf,
+            inner.x,
+            y,
+            inner.width,
+            [(line, line_style)],
+            line_style,
+            false,
+          )
+        }
+      None =>
+        render_segments(
+          buf,
+          inner.x,
+          y,
+          inner.width,
+          [(line, line_style)],
+          line_style,
+          false,
+        )
+    }
   }
   // Render cursor when focused
   if self.focused {
@@ -300,6 +377,40 @@ pub impl Widget for TextArea with render(self, area, buf) {
         )
       }
     }
+  }
+}
+
+///|
+fn render_segments(
+  buf : @buffer.Buffer,
+  x : Int,
+  y : Int,
+  width : Int,
+  segments : Array[(String, @style.Style)],
+  fill_style : @style.Style,
+  highlight_segments : Bool,
+) -> Unit {
+  let end_x = x + width
+  let mut cx = x
+  for _, segment in segments {
+    let (text, style) = segment
+    if cx >= end_x {
+      break
+    }
+    let draw_style = if highlight_segments {
+      style.bg(@style.Yellow)
+    } else {
+      style
+    }
+    let visible = @buffer.truncate_to_width(text, end_x - cx)
+    if visible != "" {
+      buf.set_string(cx, y, visible, draw_style)
+      cx = cx + @buffer.str_display_width(visible)
+    }
+  }
+  while cx < end_x {
+    buf.set(cx, y, @buffer.Cell::new(" ", fill_style))
+    cx = cx + 1
   }
 }
 
