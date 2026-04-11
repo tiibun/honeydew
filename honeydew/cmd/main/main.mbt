@@ -187,6 +187,8 @@ async fn handle_key_idle(
         @app.Connect => state.save_current_profile()
         @app.Main => state.export_results_csv()
       }
+    // Ctrl+D: disconnect and return to Connect screen (Main screen only)
+    CtrlD => if state.screen == @app.Main { state.disconnect() } else { state }
     // Transaction shortcuts (Main screen only)
     CtrlB =>
       if state.screen == @app.Main {

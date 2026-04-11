@@ -571,10 +571,33 @@ pub async fn AppState::do_connect(self : AppState) -> AppState {
         screen: Main,
         schema_tree: tree,
         focus: Editor,
-        status: "Tab=switch panel  Ctrl+Enter=run  Ctrl+S=export  Ctrl+Q=quit",
+        status: "Tab=switch panel  Ctrl+Enter=run  Ctrl+S=export  Ctrl+D=disconnect  Ctrl+Q=quit",
       }
     }
     Err(msg) => { ..self, conn_form: { ..form, error: msg } }
+  }
+}
+
+///|
+/// Close the current connection and return to the Connect screen.
+pub fn AppState::disconnect(self : AppState) -> AppState {
+  match self.conn {
+    Some(conn) => conn.close()
+    None => ()
+  }
+  let conn_panel = if self.profiles.length() > 0 { ProfileList } else { Form }
+  {
+    ..self,
+    conn: None,
+    screen: Connect,
+    conn_panel,
+    schema_tree: @widget.Tree::new([]),
+    results: @widget.Table::new([], []),
+    running_query: None,
+    cancel_requested: false,
+    in_transaction: false,
+    status: connect_status(conn_panel),
+    show_error: false,
   }
 }
 
