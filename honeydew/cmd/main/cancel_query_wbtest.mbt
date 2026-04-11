@@ -130,7 +130,7 @@ async test "run_all clears running_query on completion" {
 ///|
 // Test 6: Status shows "Running query" hint while query is in flight.
 async test "status shows running hint while query in flight" {
-  @async.with_task_group(async fn(group) {
+  @async.with_task_group(group => {
     let state = {
       ..@app.AppState::new(group),
       screen: @app.Main,
@@ -155,5 +155,63 @@ async test "CtrlC on Connect screen quits regardless" {
     let state = { ..@app.AppState::new(group), screen: @app.Connect }
     let s = handle_key(state, CtrlC)
     assert_eq(s.should_quit, true)
+  })
+}
+
+///|
+async test "CtrlC with PgTask sets cancel_requested" {
+  @async.with_task_group(async fn(group) {
+    let cancel_called = Ref::new(false)
+    let task = group.spawn(
+      fn() { @app.PgQueryResult::PgCancelled },
+      no_wait=true,
+      allow_failure=true,
+    )
+    let state = {
+      ..@app.AppState::new(group),
+      screen: @app.Main,
+      focus: @app.Editor,
+      running_query: Some(
+        @app.RunningQuery::PgTask(
+          task~,
+          cancel=fn() { cancel_called.val = true },
+          started=@bench.monotonic_clock_start(),
+        ),
+      ),
+    }
+    let after = handle_key(state, CtrlC)
+    @async.sleep(10)
+    assert_eq(after.should_quit, false)
+    assert_eq(after.cancel_requested, true)
+    assert_eq(cancel_called.val, true)
+  })
+}
+
+///|
+async test "poll_running_query clears completed PgTask" {
+  @async.with_task_group(async fn(group) {
+    let task = group.spawn(
+      fn() { @app.PgQueryResult::PgCancelled },
+      no_wait=true,
+      allow_failure=true,
+    )
+    let _ = task.wait()
+    let state = {
+      ..@app.AppState::new(group),
+      screen: @app.Main,
+      focus: @app.Editor,
+      running_query: Some(
+        @app.RunningQuery::PgTask(
+          task~,
+          cancel=fn() {  },
+          started=@bench.monotonic_clock_start(),
+        ),
+      ),
+      cancel_requested: true,
+    }
+    let after = poll_running_query(state)
+    assert_eq(after.is_query_running(), false)
+    assert_eq(after.cancel_requested, false)
+    assert_true(after.status.contains("Query cancelled"))
   })
 }

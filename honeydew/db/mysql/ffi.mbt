@@ -60,3 +60,53 @@ extern "c" fn hd_mysql_getvalue(
   buf : FixedArray[Byte],
   buf_len : Int,
 ) -> Int = "hd_mysql_getvalue"
+
+///|
+#borrow(sql)
+extern "c" fn hd_mysql_async_start(
+  conn_id : Int,
+  sql : Bytes,
+  len : Int,
+) -> Int = "hd_mysql_async_start"
+
+///|
+extern "c" fn hd_mysql_async_poll() -> Int = "hd_mysql_async_poll"
+
+///|
+extern "c" fn hd_mysql_async_cancel() -> Unit = "hd_mysql_async_cancel"
+
+///|
+extern "c" fn hd_mysql_async_affected_rows() -> Int = "hd_mysql_async_affected_rows"
+
+///|
+extern "c" fn hd_mysql_async_nrows() -> Int = "hd_mysql_async_nrows"
+
+///|
+extern "c" fn hd_mysql_async_nfields() -> Int = "hd_mysql_async_nfields"
+
+///|
+#borrow(buf)
+extern "c" fn hd_mysql_async_fname(
+  col : Int,
+  buf : FixedArray[Byte],
+  buf_len : Int,
+) -> Int = "hd_mysql_async_fname"
+
+///|
+#borrow(buf)
+extern "c" fn hd_mysql_async_getvalue(
+  row_idx : Int,
+  col : Int,
+  buf : FixedArray[Byte],
+  buf_len : Int,
+) -> Int = "hd_mysql_async_getvalue"
+
+///|
+#borrow(buf)
+extern "c" fn hd_mysql_async_errmsg(
+  buf : FixedArray[Byte],
+  buf_len : Int,
+) -> Int = "hd_mysql_async_errmsg"
+
+///|
+extern "c" fn hd_mysql_async_finish() -> Unit = "hd_mysql_async_finish"

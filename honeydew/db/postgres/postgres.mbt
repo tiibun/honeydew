@@ -2,6 +2,7 @@
 /// A handle to an open PostgreSQL client connection.
 pub struct PgConn {
   client : @pg.Client
+  cancel_token : @pg.CancelToken
 }
 
 ///|
@@ -18,12 +19,17 @@ pub async fn PgConn::connect(
   let pwd_opt : String? = if password == "" { None } else { Some(password) }
   let cfg = @pg.Config::new(host, user~, database~, password?=pwd_opt, port~)
   let (client, connection) = @pg.connect(cfg)
-  ({ client, }, connection)
+  ({ client, cancel_token: client.cancel_token() }, connection)
 }
 
 ///|
 pub fn PgConn::close(self : PgConn) -> Unit {
   self.client.close()
+}
+
+///|
+pub fn PgConn::cancel_token(self : PgConn) -> @pg.CancelToken {
+  self.cancel_token
 }
 
 ///|

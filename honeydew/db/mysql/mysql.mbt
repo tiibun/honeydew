@@ -39,6 +39,71 @@ pub fn MysqlConn::close(self : MysqlConn) -> Unit {
 }
 
 ///|
+pub fn MysqlConn::async_start(self : MysqlConn, sql : String) -> Bool {
+  let sql_bytes = @db.str_to_bytes(sql)
+  hd_mysql_async_start(self.id, sql_bytes, sql_bytes.length()) == 0
+}
+
+///|
+pub fn mysql_async_poll() -> Int {
+  hd_mysql_async_poll()
+}
+
+///|
+pub fn MysqlConn::async_result(
+  self : MysqlConn,
+  is_write : Bool,
+) -> Result[@db.QueryResult, String] {
+  let _ = self
+  let status = hd_mysql_async_poll()
+  if status == 3 {
+    let buf : FixedArray[Byte] = FixedArray::make(1024, b'\x00')
+    let n = hd_mysql_async_errmsg(buf, buf.length())
+    let msg = if n > 0 {
+      @db.fixed_bytes_to_str(buf, n)
+    } else {
+      "query failed"
+    }
+    hd_mysql_async_finish()
+    return Err(msg)
+  }
+  if status != 2 {
+    hd_mysql_async_finish()
+    return Err("async query not complete")
+  }
+  let affected_rows : Int? = if is_write {
+    Some(hd_mysql_async_affected_rows())
+  } else {
+    None
+  }
+  let buf : FixedArray[Byte] = FixedArray::make(4096, b'\x00')
+  let nrows = hd_mysql_async_nrows()
+  let ncols = hd_mysql_async_nfields()
+  let columns : Array[String] = []
+  for col = 0; col < ncols; col = col + 1 {
+    let n = hd_mysql_async_fname(col, buf, buf.length())
+    columns.push(if n > 0 { @db.fixed_bytes_to_str(buf, n) } else { "" })
+  }
+  let rows : Array[Array[String]] = []
+  for row = 0; row < nrows; row = row + 1 {
+    let r = []
+    for col = 0; col < ncols; col = col + 1 {
+      let n = hd_mysql_async_getvalue(row, col, buf, buf.length())
+      r.push(if n >= 0 { @db.fixed_bytes_to_str(buf, n) } else { "NULL" })
+    }
+    rows.push(r)
+  }
+  hd_mysql_async_finish()
+  Ok({ columns, rows, affected_rows })
+}
+
+///|
+pub fn MysqlConn::async_cancel(self : MysqlConn) -> Unit {
+  let _ = self
+  hd_mysql_async_cancel()
+}
+
+///|
 pub fn MysqlConn::query(
   self : MysqlConn,
   sql : String,

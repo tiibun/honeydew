@@ -232,8 +232,8 @@ pub fn DbHandle::close(self : DbHandle) -> Unit {
 pub fn DbHandle::cancel(self : DbHandle) -> Unit {
   match self {
     Sqlite(c) => c.interrupt()
-    Postgres(_) => () // TODO: pg_cancel_backend
-    Mysql(_) => () // TODO: KILL QUERY
+    Postgres(_) => ()
+    Mysql(c) => c.async_cancel()
   }
 }
 
@@ -243,8 +243,8 @@ pub fn DbHandle::cancel(self : DbHandle) -> Unit {
 pub fn DbHandle::async_start(self : DbHandle, sql : String) -> Bool {
   match self {
     Sqlite(c) => c.async_start(sql)
-    // Postgres and MySQL fall back to sync (handled by the caller)
-    Postgres(_) | Mysql(_) => false
+    Postgres(_) => false
+    Mysql(c) => c.async_start(sql)
   }
 }
 
@@ -253,7 +253,8 @@ pub fn DbHandle::async_start(self : DbHandle, sql : String) -> Bool {
 pub fn DbHandle::async_poll(self : DbHandle) -> Int {
   match self {
     Sqlite(_) => @sqlite.async_poll()
-    Postgres(_) | Mysql(_) => 0
+    Postgres(_) => 0
+    Mysql(_) => @mysql.mysql_async_poll()
   }
 }
 
@@ -265,8 +266,25 @@ pub fn DbHandle::async_result(
 ) -> Result[@db.QueryResult, String] {
   match self {
     Sqlite(c) => c.async_result(is_write)
-    Postgres(_) | Mysql(_) => Err("async not supported for this backend")
+    Postgres(_) => Err("async not supported for this backend")
+    Mysql(c) => c.async_result(is_write)
   }
+}
+
+///|
+pub(all) enum PgQueryResult {
+  PgSingle(result~ : @db.QueryResult)
+  PgRunAll(
+    last_result~ : @db.QueryResult,
+    total_rows~ : Int,
+    total_affected~ : Int,
+    has_affected~ : Bool,
+    stmt_count~ : Int,
+    total_stmts~ : Int,
+    in_txn~ : Bool
+  )
+  PgCancelled
+  PgFailed(msg~ : String)
 }
 
 ///|
@@ -280,6 +298,11 @@ pub fn AppState::is_query_running(self : AppState) -> Bool {
 pub(all) enum RunningQuery {
   /// A single statement execution (Ctrl+Enter).
   Single(sql~ : String, started~ : @bench.Timestamp)
+  PgTask(
+    task~ : @async.Task[PgQueryResult],
+    cancel~ : async () -> Unit,
+    started~ : @bench.Timestamp
+  )
   /// Sequential run-all execution (F5).
   RunAll(
     stmts~ : Array[String],

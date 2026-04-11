@@ -57,9 +57,14 @@ async fn handle_key(
     CtrlC =>
       if state.is_query_running() {
         // Cancel the running query instead of quitting
-        match state.conn {
-          Some(conn) => conn.cancel()
-          None => ()
+        match state.running_query {
+          Some(PgTask(cancel~, ..)) =>
+            state.group.spawn_bg(cancel, allow_failure=true)
+          _ =>
+            match state.conn {
+              Some(conn) => conn.cancel()
+              None => ()
+            }
         }
         { ..state, cancel_requested: true }
       } else {
@@ -512,13 +517,29 @@ fn query_result_status(result : @db.QueryResult) -> String {
 /// Poll the backend for async query completion.
 /// Handles Single and RunAll variants of RunningQuery.
 fn poll_running_query(state : @app.AppState) -> @app.AppState {
-  let conn = match state.conn {
-    Some(c) => c
-    None => return { ..state, running_query: None }
-  }
   let rq = match state.running_query {
     Some(rq) => rq
     None => return state
+  }
+  // PgTask uses a dedicated async task — poll via try_wait, not async_poll
+  if rq is PgTask(task~, started~, ..) {
+    let wait_result = try? task.try_wait()
+    return match wait_result {
+      Ok(None) => state // still running
+      Ok(Some(result)) => finish_pg_task(state, result, started)
+      Err(e) =>
+        {
+          ..state,
+          running_query: None,
+          cancel_requested: false,
+          status: "Query failed: \{e}",
+          show_error: true,
+        }
+    }
+  }
+  let conn = match state.conn {
+    Some(c) => c
+    None => return { ..state, running_query: None }
   }
   let poll_status = conn.async_poll()
   // 1 = still running
@@ -527,11 +548,12 @@ fn poll_running_query(state : @app.AppState) -> @app.AppState {
   }
   match rq {
     Single(sql~, started~) => finish_single(state, conn, sql, started)
+    PgTask(_) => state // unreachable — handled above
     RunAll(
       stmts~,
       current_idx=idx,
       started~,
-      partial_results=_,
+      partial_results~,
       total_rows~,
       total_affected~,
       has_affected~,
@@ -539,8 +561,8 @@ fn poll_running_query(state : @app.AppState) -> @app.AppState {
       in_txn~
     ) =>
       finish_run_all_step(
-        state, conn, stmts, idx, started, total_rows, total_affected, has_affected,
-        stmt_count, in_txn,
+        state, conn, stmts, idx, started, partial_results, total_rows, total_affected,
+        has_affected, stmt_count, in_txn,
       )
   }
 }
@@ -555,23 +577,33 @@ fn finish_single(
 ) -> @app.AppState {
   let is_write = @db.is_write_statement(sql)
   match conn.async_result(is_write) {
-    Ok(result) => {
-      let tbl = @widget.Table::new(result.columns, result.rows)
-      let status = if state.cancel_requested {
-        "Query cancelled"
+    Ok(result) =>
+      if state.cancel_requested {
+        {
+          ..state,
+          running_query: None,
+          cancel_requested: false,
+          status: with_execution_time(
+            "Query cancelled",
+            @bench.monotonic_clock_end(started),
+          ),
+          show_error: false,
+        }
       } else {
-        query_result_status(result)
+        let tbl = @widget.Table::new(result.columns, result.rows)
+        let next = {
+          ..state,
+          results: tbl,
+          running_query: None,
+          cancel_requested: false,
+          status: with_execution_time(
+            query_result_status(result),
+            @bench.monotonic_clock_end(started),
+          ),
+          show_error: false,
+        }
+        next.sync_txn_flag_for_stmt(sql)
       }
-      let next = {
-        ..state,
-        results: tbl,
-        running_query: None,
-        cancel_requested: false,
-        status: with_execution_time(status, @bench.monotonic_clock_end(started)),
-        show_error: false,
-      }
-      next.sync_txn_flag_for_stmt(sql)
-    }
     Err(msg) => {
       let status = if state.cancel_requested {
         "Query cancelled"
@@ -598,6 +630,7 @@ fn finish_run_all_step(
   stmts : Array[String],
   idx : Int,
   started : @bench.Timestamp,
+  partial_results : @widget.Table,
   total_rows : Int,
   total_affected : Int,
   has_affected : Bool,
@@ -607,6 +640,19 @@ fn finish_run_all_step(
   let sql = stmts[idx]
   let is_write = @db.is_write_statement(sql)
   match conn.async_result(is_write) {
+    Ok(_) if state.cancel_requested =>
+      {
+        ..state,
+        in_transaction: in_txn,
+        results: partial_results,
+        running_query: None,
+        cancel_requested: false,
+        status: with_execution_time(
+          "Cancelled after \{stmt_count}/\{stmts.length()} statements",
+          @bench.monotonic_clock_end(started),
+        ),
+        show_error: false,
+      }
     Ok(result) => {
       let new_partial = @widget.Table::new(result.columns, result.rows)
       let new_total_rows = total_rows + result.rows.length()
@@ -704,6 +750,90 @@ fn finish_run_all_step(
         running_query: None,
         cancel_requested: false,
         status: with_execution_time(status, @bench.monotonic_clock_end(started)),
+        show_error: false,
+      }
+    }
+  }
+}
+
+///|
+/// Handle completion of a Postgres async task.
+fn finish_pg_task(
+  state : @app.AppState,
+  result : @app.PgQueryResult,
+  started : @bench.Timestamp,
+) -> @app.AppState {
+  match result {
+    PgCancelled =>
+      {
+        ..state,
+        running_query: None,
+        cancel_requested: false,
+        status: with_execution_time(
+          "Query cancelled",
+          @bench.monotonic_clock_end(started),
+        ),
+        show_error: false,
+      }
+    PgFailed(msg~) =>
+      {
+        ..state,
+        running_query: None,
+        cancel_requested: false,
+        status: msg,
+        show_error: true,
+      }
+    PgSingle(result~) =>
+      if state.cancel_requested {
+        {
+          ..state,
+          running_query: None,
+          cancel_requested: false,
+          status: with_execution_time(
+            "Query cancelled",
+            @bench.monotonic_clock_end(started),
+          ),
+          show_error: false,
+        }
+      } else {
+        let tbl = @widget.Table::new(result.columns, result.rows)
+        {
+          ..state,
+          results: tbl,
+          running_query: None,
+          cancel_requested: false,
+          status: with_execution_time(
+            query_result_status(result),
+            @bench.monotonic_clock_end(started),
+          ),
+          show_error: false,
+        }
+      }
+    PgRunAll(
+      last_result~,
+      total_rows~,
+      total_affected~,
+      has_affected~,
+      stmt_count~,
+      total_stmts~,
+      in_txn~
+    ) => {
+      let tbl = @widget.Table::new(last_result.columns, last_result.rows)
+      let status_str = if state.cancel_requested {
+        "Cancelled after \{stmt_count}/\{total_stmts} statements"
+      } else {
+        run_all_status(stmt_count, total_rows, total_affected, has_affected)
+      }
+      {
+        ..state,
+        in_transaction: in_txn,
+        results: tbl,
+        running_query: None,
+        cancel_requested: false,
+        status: with_execution_time(
+          status_str,
+          @bench.monotonic_clock_end(started),
+        ),
         show_error: false,
       }
     }

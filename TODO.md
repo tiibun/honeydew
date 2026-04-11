@@ -30,5 +30,5 @@
 
 ## General UX
 
-- [ ] 11.Cancel a running query (Ctrl+C while query is in flight)
+- [x] 11.Cancel a running query (Ctrl+C while query is in flight)
 - [x] 1.Error detail overlay (full error message when it is truncated in status bar)

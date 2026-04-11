@@ -2,6 +2,10 @@ import {
   "tiibun/honeydew/db",
 }
 
+import {
+  "tiibun/honeydew/db/mysql" @db_mysql,
+} for "test"
+
 options(
   "native-stub": [ "mysql_stub.c" ],
 )
