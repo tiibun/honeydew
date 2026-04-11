@@ -238,12 +238,16 @@ pub(all) struct AppState {
   profile_idx : Int
   schema_tree : @widget.Tree
   sql_input : @widget.TextArea
+  query_history : Array[String]
+  history_index : Int?
+  history_draft : String?
   results : @widget.Table
   focus : Panel
   status : String
   should_quit : Bool
   show_help : Bool
   show_error : Bool
+  in_transaction : Bool
   group : @async.TaskGroup[Unit]
 }
 
@@ -267,6 +271,9 @@ pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
     },
     schema_tree: @widget.Tree::new([]),
     sql_input: @widget.TextArea::new(),
+    query_history: [],
+    history_index: None,
+    history_draft: None,
     results: @widget.Table::new([], []),
     focus: Editor,
     status: connect_status(
@@ -279,6 +286,7 @@ pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
     should_quit: false,
     show_help: false,
     show_error: false,
+    in_transaction: false,
     group,
   }
 }
@@ -469,10 +477,167 @@ pub async fn AppState::do_connect(self : AppState) -> AppState {
         screen: Main,
         schema_tree: tree,
         focus: Editor,
-        status: "Tab=switch panel  Ctrl+Enter=run  Ctrl+Q=quit",
+        status: "Tab=switch panel  Ctrl+Enter=run  Ctrl+S=export  Ctrl+Q=quit",
       }
     }
     Err(msg) => { ..self, conn_form: { ..form, error: msg } }
+  }
+}
+
+///|
+pub fn AppState::export_results_csv(self : AppState) -> AppState {
+  if self.results.columns.length() == 0 {
+    return { ..self, status: "No results to export", show_error: false }
+  }
+  match @config.export_results_csv(self.results.columns, self.results.rows) {
+    Ok(path) => { ..self, status: "Exported CSV to \{path}", show_error: false }
+    Err(msg) => { ..self, status: "Error: \{msg}", show_error: false }
+  }
+}
+
+///|
+pub fn AppState::record_query_history(
+  self : AppState,
+  query : String,
+) -> AppState {
+  let trimmed = query.trim().to_string()
+  if trimmed == "" {
+    return self.clear_query_history_nav()
+  }
+  let history = self.query_history.copy()
+  let last = history.length() - 1
+  if last < 0 || history[last] != trimmed {
+    history.push(trimmed)
+  }
+  { ..self, query_history: history, history_index: None, history_draft: None }
+}
+
+///|
+pub fn AppState::recall_prev_query(self : AppState) -> AppState {
+  let count = self.query_history.length()
+  if count == 0 {
+    return self
+  }
+  match self.history_index {
+    Some(idx) => {
+      let next_idx = if idx > 0 { idx - 1 } else { 0 }
+      {
+        ..self,
+        history_index: Some(next_idx),
+        sql_input: self.sql_input.with_value(self.query_history[next_idx]),
+      }
+    }
+    None => {
+      let next_idx = count - 1
+      {
+        ..self,
+        history_index: Some(next_idx),
+        history_draft: Some(self.sql_input.value()),
+        sql_input: self.sql_input.with_value(self.query_history[next_idx]),
+      }
+    }
+  }
+}
+
+///|
+pub fn AppState::recall_next_query(self : AppState) -> AppState {
+  match self.history_index {
+    None => self
+    Some(idx) =>
+      if idx + 1 < self.query_history.length() {
+        let next_idx = idx + 1
+        {
+          ..self,
+          history_index: Some(next_idx),
+          sql_input: self.sql_input.with_value(self.query_history[next_idx]),
+        }
+      } else {
+        let draft = match self.history_draft {
+          Some(value) => value
+          None => ""
+        }
+        {
+          ..self,
+          history_index: None,
+          history_draft: None,
+          sql_input: self.sql_input.with_value(draft),
+        }
+      }
+  }
+}
+
+///|
+pub fn AppState::clear_query_history_nav(self : AppState) -> AppState {
+  { ..self, history_index: None, history_draft: None }
+}
+
+///|
+/// Issue BEGIN to the database and mark the session as in-transaction.
+pub async fn AppState::begin_transaction(self : AppState) -> AppState {
+  match self.conn {
+    None => { ..self, status: "Error: not connected", show_error: false }
+    Some(conn) =>
+      match (conn.query("BEGIN") catch { err => Err(err.to_string()) }) {
+        Ok(_) =>
+          {
+            ..self,
+            in_transaction: true,
+            status: "Transaction started (BEGIN)",
+            show_error: false,
+          }
+        Err(msg) => { ..self, status: "Error: \{msg}", show_error: false }
+      }
+  }
+}
+
+///|
+/// Issue COMMIT to the database and clear the in-transaction flag.
+pub async fn AppState::commit_transaction(self : AppState) -> AppState {
+  match self.conn {
+    None => { ..self, status: "Error: not connected", show_error: false }
+    Some(conn) =>
+      match (conn.query("COMMIT") catch { err => Err(err.to_string()) }) {
+        Ok(_) =>
+          {
+            ..self,
+            in_transaction: false,
+            status: "Transaction committed (COMMIT)",
+            show_error: false,
+          }
+        Err(msg) => { ..self, status: "Error: \{msg}", show_error: false }
+      }
+  }
+}
+
+///|
+/// Issue ROLLBACK to the database and clear the in-transaction flag.
+pub async fn AppState::rollback_transaction(self : AppState) -> AppState {
+  match self.conn {
+    None => { ..self, status: "Error: not connected", show_error: false }
+    Some(conn) =>
+      match (conn.query("ROLLBACK") catch { err => Err(err.to_string()) }) {
+        Ok(_) =>
+          {
+            ..self,
+            in_transaction: false,
+            status: "Transaction rolled back (ROLLBACK)",
+            show_error: false,
+          }
+        Err(msg) => { ..self, status: "Error: \{msg}", show_error: false }
+      }
+  }
+}
+
+///|
+pub fn AppState::copy_selected_result_cell(self : AppState) -> AppState {
+  match self.results.selected_cell() {
+    Some(value) =>
+      match @config.copy_to_clipboard(value) {
+        Ok(_) =>
+          { ..self, status: "Copied cell to clipboard", show_error: false }
+        Err(msg) => { ..self, status: "Error: \{msg}", show_error: false }
+      }
+    None => { ..self, status: "No cell selected", show_error: false }
   }
 }
 

@@ -67,3 +67,24 @@ test "Key::from_bytes - unknown sequence" {
   let k = @terminal.Key::from_bytes([27, 91, 255])
   assert_true(k is Unknown(_))
 }
+
+///|
+test "Key::from_bytes - CtrlB (byte 2)" {
+  assert_eq(@terminal.Key::from_bytes([2]), CtrlB)
+}
+
+///|
+test "Key::from_bytes - CtrlR (byte 18)" {
+  assert_eq(@terminal.Key::from_bytes([18]), CtrlR)
+}
+
+///|
+test "Key::from_bytes - CtrlM escape sequences (kitty + xterm)" {
+  // kitty keyboard protocol: ESC [109;5u
+  assert_eq(@terminal.Key::from_bytes([27, 91, 49, 48, 57, 59, 53, 117]), CtrlM)
+  // XTerm modifyOtherKeys=2: ESC [27;5;109~
+  assert_eq(
+    @terminal.Key::from_bytes([27, 91, 50, 55, 59, 53, 59, 49, 48, 57, 126]),
+    CtrlM,
+  )
+}

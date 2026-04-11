@@ -51,10 +51,13 @@ pub(all) enum Key {
   End
   PageUp
   PageDown
+  CtrlB
   CtrlC
   CtrlD
   CtrlL
+  CtrlM
   CtrlQ
+  CtrlR
   CtrlS
   CtrlZ
   CtrlEnter

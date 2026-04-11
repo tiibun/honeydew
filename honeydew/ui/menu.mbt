@@ -15,13 +15,21 @@ fn fill_row(left : String, right : String, width : Int) -> String {
 
 ///|
 /// Render the 1-row menu bar at the very top of the screen.
-pub fn render_menu_bar(frame : @honeytui.Frame, _state : @app.AppState) -> Unit {
+pub fn render_menu_bar(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   let area = frame.size()
   let bar_area = @layout.Rect::new(area.x, area.y, area.width, 1)
-  let left = " honeydew "
+  let left = if state.in_transaction {
+    " honeydew  [TXN] "
+  } else {
+    " honeydew "
+  }
   let right = " ?=Help  Ctrl+Q=Quit "
   let text = fill_row(left, right, area.width)
-  let bar_style = @style.Style::default().fg(@style.Black).bg(@style.Cyan)
+  let bar_style = if state.in_transaction {
+    @style.Style::default().fg(@style.Black).bg(@style.Yellow)
+  } else {
+    @style.Style::default().fg(@style.Black).bg(@style.Cyan)
+  }
   frame.render_widget(@widget.Paragraph::new(text).style(bar_style), bar_area)
 }
 
@@ -88,7 +96,7 @@ pub fn render_help_overlay(
   let area = frame.size()
   let overlay_area = @layout.Placement::centered(
     @layout.AtMost(50),
-    @layout.AtMost(13),
+    @layout.AtMost(16),
   ).resolve(area)
   let content = match state.screen {
     @app.Connect =>
@@ -104,7 +112,12 @@ pub fn render_help_overlay(
       " Tab              switch panel\n" +
       " Ctrl+Enter       run statement at cursor\n" +
       " F5               run all statements\n" +
-      " ↑ / ↓           scroll / select\n" +
+      " Ctrl+S           export results as CSV\n" +
+      " Ctrl+B           BEGIN transaction\n" +
+      " Ctrl+M           COMMIT transaction\n" +
+      " Ctrl+R           ROLLBACK transaction\n" +
+      " ↑ / ↓           navigate; editor recalls history at top/bottom\n" +
+      " y                copy selected result cell\n" +
       " Space / Enter    expand/collapse (objects)\n" +
       " ← / →           collapse / expand (objects)\n" +
       " e                show full error details\n" +

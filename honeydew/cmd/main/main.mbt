@@ -53,6 +53,12 @@ async fn handle_key(
       } else {
         dispatch(state, key)
       }
+    Char('y') =>
+      if state.screen == @app.Main && state.focus == @app.Results {
+        state.copy_selected_result_cell()
+      } else {
+        dispatch(state, key)
+      }
     Char('q') =>
       // 'q' quits only when profile list has focus; in the form it's text input
       if state.screen == @app.Connect && state.conn_panel == @app.ProfileList {
@@ -134,10 +140,28 @@ async fn handle_key(
           }
         @app.Main => dispatch(state, key)
       }
-    // Ctrl+S: save current form as a profile
+    // Ctrl+S: save profile on Connect, export results on Main
     CtrlS =>
-      if state.screen == @app.Connect {
-        state.save_current_profile()
+      match state.screen {
+        @app.Connect => state.save_current_profile()
+        @app.Main => state.export_results_csv()
+      }
+    // Transaction shortcuts (Main screen only)
+    CtrlB =>
+      if state.screen == @app.Main {
+        state.begin_transaction()
+      } else {
+        state
+      }
+    CtrlM =>
+      if state.screen == @app.Main {
+        state.commit_transaction()
+      } else {
+        state
+      }
+    CtrlR =>
+      if state.screen == @app.Main {
+        state.rollback_transaction()
       } else {
         state
       }
@@ -203,28 +227,41 @@ fn dispatch(state : @app.AppState, key : @terminal.Key) -> @app.AppState {
       match state.focus {
         @app.Schema =>
           { ..state, schema_tree: state.schema_tree.handle_key(key) }
-        @app.Editor => {
-          let new_input = state.sql_input.handle_key(key)
-          let highlighted = apply_highlight(new_input)
-          { ..state, sql_input: highlighted }
-        }
+        @app.Editor =>
+          if key == Up && state.sql_input.cursor_line_index() == 0 {
+            let recalled = state.recall_prev_query()
+            { ..recalled, sql_input: apply_highlight(recalled.sql_input) }
+          } else if key == Down &&
+            state.sql_input.cursor_line_index() ==
+            state.sql_input.line_count() - 1 {
+            let recalled = state.recall_next_query()
+            { ..recalled, sql_input: apply_highlight(recalled.sql_input) }
+          } else {
+            let new_input = state.sql_input.handle_key(key)
+            let highlighted = apply_highlight(new_input)
+            let next_state = if is_edit_key(key) {
+              state.clear_query_history_nav()
+            } else {
+              state
+            }
+            { ..next_state, sql_input: highlighted }
+          }
         @app.Results => { ..state, results: state.results.handle_key(key) }
       }
   }
 }
 
 ///|
-fn apply_highlight(ta : @widget.TextArea) -> @widget.TextArea {
-  let text = ta.value()
-  let pos = ta.cursor_pos()
-  let (_, start_char, end_char) = current_statement(text, pos)
-  if start_char == end_char {
-    ta.clear_highlight()
-  } else {
-    let start_line = char_pos_to_line(text, start_char)
-    let end_line = char_pos_to_line(text, end_char - 1)
-    ta.with_highlight(start_line, end_line)
+fn is_edit_key(key : @terminal.Key) -> Bool {
+  match key {
+    Char(_) | Enter | Backspace | Delete => true
+    _ => false
   }
+}
+
+///|
+fn apply_highlight(ta : @widget.TextArea) -> @widget.TextArea {
+  ta.clear_highlight().with_styled_lines(sql_highlight_lines(ta.value()))
 }
 
 ///|
@@ -257,18 +294,35 @@ async fn run_query_at_cursor(state : @app.AppState) -> @app.AppState {
   if stmt == "" {
     return state
   }
+  let state = state.record_query_history(stmt)
   match state.conn {
     None => { ..state, status: "Error: not connected", show_error: false }
-    Some(conn) =>
+    Some(conn) => {
+      let started = @bench.monotonic_clock_start()
       match (conn.query(stmt) catch { err => Err(err.to_string()) }) {
         Ok(result) => {
           let tbl = @widget.Table::new(result.columns, result.rows)
-          let n = result.rows.length()
-          let msg = if n == 1 { "1 row fetched" } else { "\{n} rows fetched" }
-          { ..state, results: tbl, status: msg, show_error: false }
+          {
+            ..state,
+            results: tbl,
+            status: with_execution_time(
+              query_result_status(result),
+              @bench.monotonic_clock_end(started),
+            ),
+            show_error: false,
+          }
         }
-        Err(msg) => { ..state, status: "Error: \{msg}", show_error: false }
+        Err(msg) =>
+          {
+            ..state,
+            status: with_execution_time(
+              "Error: \{msg}",
+              @bench.monotonic_clock_end(started),
+            ),
+            show_error: false,
+          }
       }
+    }
   }
 }
 
@@ -279,11 +333,15 @@ async fn run_all_queries(state : @app.AppState) -> @app.AppState {
   if stmts.length() == 0 {
     return state
   }
+  let state = state.record_query_history(text.trim().to_string())
   match state.conn {
     None => { ..state, status: "Error: not connected", show_error: false }
     Some(conn) => {
+      let started = @bench.monotonic_clock_start()
       let mut last_result = @widget.Table::new([], [])
       let mut total_rows = 0
+      let mut total_affected = 0
+      let mut has_affected_rows = false
       let mut stmt_count = 0
       let mut error : String? = None
       for stmt in stmts {
@@ -291,6 +349,13 @@ async fn run_all_queries(state : @app.AppState) -> @app.AppState {
           Ok(result) => {
             last_result = @widget.Table::new(result.columns, result.rows)
             total_rows = total_rows + result.rows.length()
+            match result.affected_rows {
+              Some(n) => {
+                total_affected = total_affected + n
+                has_affected_rows = true
+              }
+              None => ()
+            }
             stmt_count = stmt_count + 1
           }
           Err(msg) => {
@@ -300,18 +365,84 @@ async fn run_all_queries(state : @app.AppState) -> @app.AppState {
         }
       }
       match error {
-        Some(msg) => { ..state, status: "Error: \{msg}", show_error: false }
-        None => {
-          let msg = if stmt_count == 1 {
-            "\{total_rows} row(s)"
-          } else {
-            "\{stmt_count} statements executed, \{total_rows} row(s) total"
+        Some(msg) =>
+          {
+            ..state,
+            status: with_execution_time(
+              "Error: \{msg}",
+              @bench.monotonic_clock_end(started),
+            ),
+            show_error: false,
           }
-          { ..state, results: last_result, status: msg, show_error: false }
+        None => {
+          let msg = run_all_status(
+            stmt_count, total_rows, total_affected, has_affected_rows,
+          )
+          {
+            ..state,
+            results: last_result,
+            status: with_execution_time(
+              msg,
+              @bench.monotonic_clock_end(started),
+            ),
+            show_error: false,
+          }
         }
       }
     }
   }
+}
+
+///|
+fn query_result_status(result : @db.QueryResult) -> String {
+  match result.affected_rows {
+    Some(n) => affected_rows_status(n)
+    None => {
+      let n = result.rows.length()
+      if n == 1 {
+        "1 row fetched"
+      } else {
+        "\{n} rows fetched"
+      }
+    }
+  }
+}
+
+///|
+fn run_all_status(
+  stmt_count : Int,
+  total_rows : Int,
+  total_affected : Int,
+  has_affected_rows : Bool,
+) -> String {
+  if total_rows == 0 && has_affected_rows {
+    if stmt_count == 1 {
+      affected_rows_status(total_affected)
+    } else {
+      "\{stmt_count} statements executed, \{total_affected} rows affected"
+    }
+  } else if has_affected_rows {
+    "\{stmt_count} statements executed, \{total_rows} row(s) fetched, \{total_affected} rows affected"
+  } else if stmt_count == 1 {
+    "\{total_rows} row(s)"
+  } else {
+    "\{stmt_count} statements executed, \{total_rows} row(s) total"
+  }
+}
+
+///|
+fn affected_rows_status(n : Int) -> String {
+  if n == 1 {
+    "1 row affected"
+  } else {
+    "\{n} rows affected"
+  }
+}
+
+///|
+fn with_execution_time(status : String, elapsed_us : Double) -> String {
+  let elapsed_ms = ((elapsed_us + 500.0) / 1000.0).to_int()
+  "\{status} (\{elapsed_ms} ms)"
 }
 
 ///|
@@ -399,15 +530,4 @@ fn leading_spaces(s : String) -> Int {
     }
   }
   i
-}
-
-///|
-fn char_pos_to_line(text : String, char_pos : Int) -> Int {
-  let mut line = 0
-  for i = 0; i < char_pos && i < text.length(); i = i + 1 {
-    if text[i] == '\n' {
-      line = line + 1
-    }
-  }
-  line
 }

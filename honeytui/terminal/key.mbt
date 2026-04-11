@@ -16,10 +16,13 @@ pub(all) enum Key {
   End
   PageUp
   PageDown
+  CtrlB
   CtrlC
   CtrlD
   CtrlL
+  CtrlM
   CtrlQ
+  CtrlR
   CtrlS
   CtrlZ
   CtrlEnter
@@ -45,6 +48,8 @@ pub fn Key::from_bytes(bytes : Array[Int]) -> Key {
         Esc
       } else if b == 9 {
         Tab
+      } else if b == 2 {
+        CtrlB
       } else if b == 3 {
         CtrlC
       } else if b == 4 {
@@ -53,6 +58,8 @@ pub fn Key::from_bytes(bytes : Array[Int]) -> Key {
         CtrlL
       } else if b == 17 {
         CtrlQ
+      } else if b == 18 {
+        CtrlR
       } else if b == 19 {
         CtrlS
       } else if b == 26 {
@@ -69,6 +76,11 @@ pub fn Key::from_bytes(bytes : Array[Int]) -> Key {
     [27, 91, 49, 51, 59, 53, 117] => CtrlEnter // ESC [13;5u
     [27, 91, 53, 59, 49, 51, 126] => CtrlEnter // ESC [5;13~
     [27, 91, 50, 55, 59, 53, 59, 49, 51, 126] => CtrlEnter // ESC [27;5;13~
+    // Ctrl+M (COMMIT) — byte 13 collides with Enter, so we decode only escape sequences:
+    //   ESC [109;5u      kitty keyboard protocol
+    //   ESC [27;5;109~   XTerm modifyOtherKeys=2
+    [27, 91, 49, 48, 57, 59, 53, 117] => CtrlM // ESC [109;5u
+    [27, 91, 50, 55, 59, 53, 59, 49, 48, 57, 126] => CtrlM // ESC [27;5;109~
     // ESC [15~  => F5
     [27, 91, 49, 53, 126] => F5
     // ESC [ Z  => ShiftTab

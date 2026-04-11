@@ -31,21 +31,34 @@ pub(all) struct AppState {
   profile_idx : Int
   schema_tree : @widget.Tree
   sql_input : @widget.TextArea
+  query_history : Array[String]
+  history_index : Int?
+  history_draft : String?
   results : @widget.Table
   focus : Panel
   status : String
   should_quit : Bool
   show_help : Bool
   show_error : Bool
+  in_transaction : Bool
   group : @async.TaskGroup[Unit]
 }
+pub async fn AppState::begin_transaction(Self) -> Self
+pub fn AppState::clear_query_history_nav(Self) -> Self
+pub async fn AppState::commit_transaction(Self) -> Self
+pub fn AppState::copy_selected_result_cell(Self) -> Self
 pub fn AppState::delete_selected_profile(Self) -> Self
 pub async fn AppState::do_connect(Self) -> Self
+pub fn AppState::export_results_csv(Self) -> Self
 pub fn AppState::handle_schema_click(Self, Int, Int, Int, Int) -> Self
 pub fn AppState::load_selected_profile(Self) -> Self
 pub fn AppState::navigate_profiles(Self, @terminal.Key) -> Self
 pub fn AppState::new(@async.TaskGroup[Unit]) -> Self
 pub fn AppState::profile_names(Self) -> Array[String]
+pub fn AppState::recall_next_query(Self) -> Self
+pub fn AppState::recall_prev_query(Self) -> Self
+pub fn AppState::record_query_history(Self, String) -> Self
+pub async fn AppState::rollback_transaction(Self) -> Self
 pub fn AppState::save_current_profile(Self) -> Self
 pub fn AppState::selected_schema_table(Self) -> String?
 
