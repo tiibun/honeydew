@@ -11,7 +11,7 @@
 
 - [x] 17.Syntax highlighting (colorize keywords, strings, comments — not just range highlight)
 - [x] 16.Query history — recall previous executed queries with Up/Down (or dedicated keybind)
-- [ ] 2.Run all statements (not just the one at cursor)
+- [x] 2.Run all statements (not just the one at cursor)
 
 ## Results Panel
 
