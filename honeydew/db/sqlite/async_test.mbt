@@ -36,11 +36,12 @@ test "sqlite async interrupt cancels a long query" {
     Ok(c) => c
     Err(e) => fail("open failed: \{e}")
   }
-  // Create a recursive CTE that generates many rows to keep the worker busy.
+  // Recursive CTE of ~5M rows (~0.4s on typical hardware) keeps the worker
+  // busy long enough for interrupt() to fire during sqlite3_step.
   let sql =
     #|WITH RECURSIVE cnt(x) AS (
-    #|  SELECT 1 UNION ALL SELECT x+1 FROM cnt WHERE x < 100000000
-    #|) SELECT count(*) FROM cnt
+    #|  VALUES(0) UNION ALL SELECT x+1 FROM cnt WHERE x < 5000000
+    #|) SELECT sum(x) FROM cnt
   assert_true(conn.async_start(sql))
   // Repeatedly interrupt until the worker finishes —
   // a single interrupt() may fire before sqlite3_step begins.
