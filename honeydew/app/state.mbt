@@ -14,7 +14,16 @@ pub async fn build_schema_tree(
   if tables.length() > 0 {
     items.push(@widget.TreeItem::node("Tables", 1))
     for t in tables {
-      items.push(@widget.TreeItem::leaf(t, 2, t))
+      items.push(@widget.TreeItem::collapsed_node(t, 2))
+      let cols = match handle.columns(t) {
+        Ok(c) => c
+        Err(_) => []
+      }
+      for col in cols {
+        items.push(
+          @widget.TreeItem::leaf("\{col.name} : \{col.col_type}", 3, col.name),
+        )
+      }
     }
   }
   let views = match handle.views() {
@@ -24,7 +33,16 @@ pub async fn build_schema_tree(
   if views.length() > 0 {
     items.push(@widget.TreeItem::node("Views", 1))
     for v in views {
-      items.push(@widget.TreeItem::leaf(v, 2, v))
+      items.push(@widget.TreeItem::collapsed_node(v, 2))
+      let cols = match handle.columns(v) {
+        Ok(c) => c
+        Err(_) => []
+      }
+      for col in cols {
+        items.push(
+          @widget.TreeItem::leaf("\{col.name} : \{col.col_type}", 3, col.name),
+        )
+      }
     }
   }
   @widget.Tree::new(items)
