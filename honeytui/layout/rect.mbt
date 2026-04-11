@@ -7,7 +7,7 @@ pub struct Rect {
   y : Int
   width : Int
   height : Int
-} derive(Eq)
+} derive(Eq, Show)
 
 ///|
 pub fn Rect::new(x : Int, y : Int, width : Int, height : Int) -> Rect {
