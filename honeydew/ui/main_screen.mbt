@@ -55,7 +55,7 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     @style.Style::default().fg(@style.BrightBlack)
   }
   let editor_block = @widget.Block::new()
-    .title(" SQL (Ctrl+Enter=run) ")
+    .title(" SQL (Ctrl+Enter=run current  F5=run all) ")
     .borders(@widget.Borders::all())
     .border_style(editor_border_style)
   let sql_widget = state.sql_input.focused(editor_focused).block(editor_block)
@@ -93,5 +93,7 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   )
   if state.show_help {
     render_help_overlay(frame, state)
+  } else if state.show_error {
+    render_error_overlay(frame, state)
   }
 }

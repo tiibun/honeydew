@@ -23,6 +23,7 @@ pub(all) enum Key {
   CtrlS
   CtrlZ
   CtrlEnter
+  F5
   /// Left mouse button click at (col, row), 1-indexed.
   MouseClick(Int, Int)
   Unknown(Array[Int])
@@ -68,6 +69,8 @@ pub fn Key::from_bytes(bytes : Array[Int]) -> Key {
     [27, 91, 49, 51, 59, 53, 117] => CtrlEnter // ESC [13;5u
     [27, 91, 53, 59, 49, 51, 126] => CtrlEnter // ESC [5;13~
     [27, 91, 50, 55, 59, 53, 59, 49, 51, 126] => CtrlEnter // ESC [27;5;13~
+    // ESC [15~  => F5
+    [27, 91, 49, 53, 126] => F5
     // ESC [ Z  => ShiftTab
     [27, 91, 90] => ShiftTab
     // ESC [ A  => Up

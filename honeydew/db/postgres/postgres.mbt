@@ -37,27 +37,31 @@ pub async fn PgConn::query(
   }
   let mut columns : Array[String] = []
   let rows : Array[Array[String]] = []
-  loop stream.next() {
-    None => break
-    Some(msg) =>
-      match msg {
-        @pg.SimpleQueryMessage::RowDescription(cols) => {
-          columns = cols
-          continue stream.next()
+  try {
+    loop stream.next() {
+      None => break
+      Some(msg) =>
+        match msg {
+          @pg.SimpleQueryMessage::RowDescription(cols) => {
+            columns = cols
+            continue stream.next()
+          }
+          @pg.SimpleQueryMessage::Row(row) => {
+            rows.push(
+              row.values.map(fn(v) {
+                match v {
+                  None => "NULL"
+                  Some(s) => s
+                }
+              }),
+            )
+            continue stream.next()
+          }
+          @pg.SimpleQueryMessage::CommandComplete(_) => continue stream.next()
         }
-        @pg.SimpleQueryMessage::Row(row) => {
-          rows.push(
-            row.values.map(fn(v) {
-              match v {
-                None => "NULL"
-                Some(s) => s
-              }
-            }),
-          )
-          continue stream.next()
-        }
-        @pg.SimpleQueryMessage::CommandComplete(_) => continue stream.next()
-      }
+    }
+  } catch {
+    err => return Err(err.to_string())
   }
   Ok({ columns, rows })
 }

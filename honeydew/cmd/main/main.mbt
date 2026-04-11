@@ -41,9 +41,18 @@ async fn handle_key(
   if state.show_help {
     return { ..state, show_help: false }
   }
+  if state.show_error {
+    return { ..state, show_error: false }
+  }
   match key {
     CtrlC | CtrlQ => { ..state, should_quit: true }
     Char('?') => { ..state, show_help: true }
+    Char('e') =>
+      if state.screen == @app.Main && state.status.contains("Error") {
+        { ..state, show_error: true }
+      } else {
+        dispatch(state, key)
+      }
     Char('q') =>
       // 'q' quits only when profile list has focus; in the form it's text input
       if state.screen == @app.Connect && state.conn_panel == @app.ProfileList {
@@ -70,6 +79,12 @@ async fn handle_key(
           } else {
             state
           }
+      }
+    F5 =>
+      if state.screen == @app.Main && state.focus == @app.Editor {
+        run_all_queries(state)
+      } else {
+        state
       }
     // Tab: advance through panels on Connect; switch panels on Main
     Tab =>
@@ -243,26 +258,65 @@ async fn run_query_at_cursor(state : @app.AppState) -> @app.AppState {
     return state
   }
   match state.conn {
-    None => { ..state, status: "Error: not connected" }
+    None => { ..state, status: "Error: not connected", show_error: false }
     Some(conn) =>
-      match conn.query(stmt) {
+      match (conn.query(stmt) catch { err => Err(err.to_string()) }) {
         Ok(result) => {
           let tbl = @widget.Table::new(result.columns, result.rows)
           let n = result.rows.length()
           let msg = if n == 1 { "1 row fetched" } else { "\{n} rows fetched" }
-          { ..state, results: tbl, status: msg }
+          { ..state, results: tbl, status: msg, show_error: false }
         }
-        Err(msg) => { ..state, status: "Error: \{msg}" }
+        Err(msg) => { ..state, status: "Error: \{msg}", show_error: false }
       }
   }
 }
 
 ///|
-fn current_statement(text : String, cursor_pos : Int) -> (String, Int, Int) {
-  let len = text.length()
-  if len == 0 {
-    return ("", 0, 0)
+async fn run_all_queries(state : @app.AppState) -> @app.AppState {
+  let text = state.sql_input.value()
+  let stmts = all_statements(text)
+  if stmts.length() == 0 {
+    return state
   }
+  match state.conn {
+    None => { ..state, status: "Error: not connected", show_error: false }
+    Some(conn) => {
+      let mut last_result = @widget.Table::new([], [])
+      let mut total_rows = 0
+      let mut stmt_count = 0
+      let mut error : String? = None
+      for stmt in stmts {
+        match (conn.query(stmt) catch { err => Err(err.to_string()) }) {
+          Ok(result) => {
+            last_result = @widget.Table::new(result.columns, result.rows)
+            total_rows = total_rows + result.rows.length()
+            stmt_count = stmt_count + 1
+          }
+          Err(msg) => {
+            error = Some(msg)
+            break
+          }
+        }
+      }
+      match error {
+        Some(msg) => { ..state, status: "Error: \{msg}", show_error: false }
+        None => {
+          let msg = if stmt_count == 1 {
+            "\{total_rows} row(s)"
+          } else {
+            "\{stmt_count} statements executed, \{total_rows} row(s) total"
+          }
+          { ..state, results: last_result, status: msg, show_error: false }
+        }
+      }
+    }
+  }
+}
+
+///|
+fn find_statement_boundaries(text : String) -> Array[Int] {
+  let len = text.length()
   let boundaries : Array[Int] = [0]
   let mut in_quote = false
   for i = 0; i < len; i = i + 1 {
@@ -274,6 +328,40 @@ fn current_statement(text : String, cursor_pos : Int) -> (String, Int, Int) {
     }
   }
   boundaries.push(len)
+  boundaries
+}
+
+///|
+fn all_statements(text : String) -> Array[String] {
+  if text.length() == 0 {
+    return []
+  }
+  let boundaries = find_statement_boundaries(text)
+  let len = text.length()
+  let result = []
+  for i = 0; i + 1 < boundaries.length(); i = i + 1 {
+    let s = boundaries[i]
+    let e = boundaries[i + 1]
+    let raw_end = if e > 0 && e <= len && text[e - 1] == ';' {
+      e - 1
+    } else {
+      e
+    }
+    let stmt = text[s:raw_end].to_string().trim().to_string()
+    if stmt != "" {
+      result.push(stmt)
+    }
+  }
+  result
+}
+
+///|
+fn current_statement(text : String, cursor_pos : Int) -> (String, Int, Int) {
+  let len = text.length()
+  if len == 0 {
+    return ("", 0, 0)
+  }
+  let boundaries = find_statement_boundaries(text)
   let mut seg_start = 0
   let mut seg_end = len
   for i = 0; i + 1 < boundaries.length(); i = i + 1 {

@@ -36,6 +36,7 @@ pub(all) struct AppState {
   status : String
   should_quit : Bool
   show_help : Bool
+  show_error : Bool
   group : @async.TaskGroup[Unit]
 }
 pub fn AppState::delete_selected_profile(Self) -> Self

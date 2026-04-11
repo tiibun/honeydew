@@ -26,6 +26,73 @@ pub fn render_menu_bar(frame : @honeytui.Frame, _state : @app.AppState) -> Unit 
 }
 
 ///|
+/// Render a centered overlay showing the full error message.
+pub fn render_error_overlay(
+  frame : @honeytui.Frame,
+  state : @app.AppState,
+) -> Unit {
+  let area = frame.size()
+  let overlay_w = if area.width > 66 { 64 } else { area.width }
+  let overlay_h = 8
+  let ox = (area.width - overlay_w) / 2
+  let oy = (area.height - overlay_h) / 2
+  let overlay_area = @layout.Rect::new(
+    if ox > 0 {
+      ox
+    } else {
+      0
+    },
+    if oy > 0 {
+      oy
+    } else {
+      0
+    },
+    overlay_w,
+    overlay_h,
+  )
+  let inner_h = overlay_h - 2
+  let inner_w = overlay_w - 2
+  let block = @widget.Block::new()
+    .title(" Error Details ")
+    .borders(@widget.Borders::all())
+    .border_style(@style.Style::default().fg(@style.Red))
+    .title_style(
+      @style.Style::default().fg(@style.Red).add_modifier(@style.bold),
+    )
+  frame.render_widget(block, overlay_area)
+  let inner = @layout.Rect::new(
+    overlay_area.x + 1,
+    overlay_area.y + 1,
+    inner_w,
+    inner_h,
+  )
+  let msg_area = @layout.Rect::new(
+    inner.x,
+    inner.y,
+    inner.width,
+    inner.height - 1,
+  )
+  frame.render_widget(
+    @widget.Paragraph::new(state.status).style(
+      @style.Style::default().fg(@style.White),
+    ),
+    msg_area,
+  )
+  let hint_area = @layout.Rect::new(
+    inner.x,
+    inner.y + inner.height - 1,
+    inner.width,
+    1,
+  )
+  frame.render_widget(
+    @widget.Paragraph::new("any key to close").style(
+      @style.Style::default().fg(@style.BrightBlack),
+    ),
+    hint_area,
+  )
+}
+
+///|
 /// Render a centered help overlay with all key bindings.
 pub fn render_help_overlay(
   frame : @honeytui.Frame,
@@ -53,10 +120,12 @@ pub fn render_help_overlay(
       " ?                close this help"
     @app.Main =>
       " Tab              switch panel\n" +
-      " Ctrl+Enter       run SQL (editor only)\n" +
+      " Ctrl+Enter       run statement at cursor\n" +
+      " F5               run all statements\n" +
       " ↑ / ↓           scroll / select\n" +
       " Space / Enter    expand/collapse (objects)\n" +
       " ← / →           collapse / expand (objects)\n" +
+      " e                show full error details\n" +
       " Ctrl+Q           quit\n" +
       "\n" +
       " ?                close this help"

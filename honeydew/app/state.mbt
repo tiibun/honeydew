@@ -243,6 +243,7 @@ pub(all) struct AppState {
   status : String
   should_quit : Bool
   show_help : Bool
+  show_error : Bool
   group : @async.TaskGroup[Unit]
 }
 
@@ -277,6 +278,7 @@ pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
     ),
     should_quit: false,
     show_help: false,
+    show_error: false,
     group,
   }
 }

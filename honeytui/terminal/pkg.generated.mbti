@@ -58,6 +58,7 @@ pub(all) enum Key {
   CtrlS
   CtrlZ
   CtrlEnter
+  F5
   MouseClick(Int, Int)
   Unknown(Array[Int])
   Resize
