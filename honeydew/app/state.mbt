@@ -627,8 +627,16 @@ pub fn stmt_opens_txn(stmt : String) -> Bool {
 /// transaction: `COMMIT [WORK|TRANSACTION]` or `ROLLBACK [WORK|TRANSACTION|TO …]`.
 pub fn stmt_closes_txn(stmt : String) -> Bool {
   let s = stmt.trim().to_string()
-  stmt_starts_with_keyword(s, "COMMIT") ||
-  stmt_starts_with_keyword(s, "ROLLBACK")
+  if stmt_starts_with_keyword(s, "COMMIT") {
+    return true
+  }
+  // ROLLBACK TO [SAVEPOINT] rolls back to a savepoint but stays inside the
+  // transaction. Only a bare ROLLBACK (or ROLLBACK WORK / ROLLBACK TRANSACTION)
+  // ends the transaction.
+  if stmt_starts_with_keyword(s, "ROLLBACK") {
+    return !stmt_starts_with_keyword(s, "ROLLBACK TO")
+  }
+  false
 }
 
 ///|
