@@ -17,7 +17,12 @@ fn main {
             @app.Main => @ui.render_main(frame, state)
           }
         })
-        if state.is_query_running() {
+        if state.conn_lost {
+          // Connection was lost — auto-reconnect using existing parameters.
+          // The error status was already set; this draw showed it.
+          // Now attempt reconnect (may block briefly for network connections).
+          state = state.attempt_reconnect()
+        } else if state.is_query_running() {
           // Non-blocking: poll for key with short timeout, then check query
           match
             @async.with_timeout_opt(50, async fn() { terminal.read_key() }) {
@@ -403,15 +408,22 @@ async fn run_query_sync(
       }
       next.sync_txn_flag_for_stmt(stmt)
     }
-    Err(msg) =>
+    Err(msg) => {
+      let lost = is_connection_lost(msg)
       {
         ..state,
-        status: with_execution_time(
-          "Error: \{msg}",
-          @bench.monotonic_clock_end(started),
-        ),
+        conn_lost: lost,
+        status: if lost {
+          "Connection lost — reconnecting..."
+        } else {
+          with_execution_time(
+            "Error: \{msg}",
+            @bench.monotonic_clock_end(started),
+          )
+        },
         show_error: false,
       }
+    }
   }
 }
 
@@ -498,16 +510,23 @@ async fn run_all_queries_sync(
     }
   }
   match error {
-    Some(msg) =>
+    Some(msg) => {
+      let lost = is_connection_lost(msg)
       {
         ..state,
         in_transaction: current_in_txn,
-        status: with_execution_time(
-          "Error: \{msg}",
-          @bench.monotonic_clock_end(started),
-        ),
+        conn_lost: lost,
+        status: if lost {
+          "Connection lost — reconnecting..."
+        } else {
+          with_execution_time(
+            "Error: \{msg}",
+            @bench.monotonic_clock_end(started),
+          )
+        },
         show_error: false,
       }
+    }
     None => {
       let msg = run_all_status(
         stmt_count, total_rows, total_affected, has_affected_rows,
@@ -630,8 +649,12 @@ fn finish_single(
         next.sync_txn_flag_for_stmt(sql)
       }
     Err(msg) => {
-      let status = if state.cancel_requested {
+      let cancelled = state.cancel_requested
+      let lost = !cancelled && is_connection_lost(msg)
+      let status = if cancelled {
         "Query cancelled"
+      } else if lost {
+        "Connection lost — reconnecting..."
       } else {
         "Error: \{msg}"
       }
@@ -639,6 +662,7 @@ fn finish_single(
         ..state,
         running_query: None,
         cancel_requested: false,
+        conn_lost: lost,
         status: with_execution_time(status, @bench.monotonic_clock_end(started)),
         show_error: false,
       }
@@ -764,8 +788,12 @@ fn finish_run_all_step(
       }
     }
     Err(msg) => {
-      let status = if state.cancel_requested {
+      let cancelled = state.cancel_requested
+      let lost = !cancelled && is_connection_lost(msg)
+      let status = if cancelled {
         "Cancelled after \{stmt_count}/\{stmts.length()} statements"
+      } else if lost {
+        "Connection lost — reconnecting..."
       } else {
         "Error: \{msg}"
       }
@@ -774,6 +802,7 @@ fn finish_run_all_step(
         in_transaction: in_txn,
         running_query: None,
         cancel_requested: false,
+        conn_lost: lost,
         status: with_execution_time(status, @bench.monotonic_clock_end(started)),
         show_error: false,
       }
@@ -800,14 +829,21 @@ fn finish_pg_task(
         ),
         show_error: false,
       }
-    PgFailed(msg~) =>
+    PgFailed(msg~) => {
+      let lost = is_connection_lost(msg)
       {
         ..state,
         running_query: None,
         cancel_requested: false,
-        status: msg,
-        show_error: true,
+        conn_lost: lost,
+        status: if lost {
+          "Connection lost — reconnecting..."
+        } else {
+          msg
+        },
+        show_error: !lost,
       }
+    }
     PgSingle(result~) =>
       if state.cancel_requested {
         {
@@ -900,6 +936,21 @@ fn affected_rows_status(n : Int) -> String {
 fn with_execution_time(status : String, elapsed_us : Double) -> String {
   let elapsed_ms = ((elapsed_us + 500.0) / 1000.0).to_int()
   "\{status} (\{elapsed_ms} ms)"
+}
+
+///|
+/// Returns true when an error message indicates that the database connection
+/// was lost (as opposed to a SQL or application-level error).
+fn is_connection_lost(msg : String) -> Bool {
+  let u = msg.to_upper()
+  u.contains("SERVER CLOSED THE CONNECTION") ||
+  u.contains("LOST CONNECTION") ||
+  u.contains("SERVER HAS GONE AWAY") ||
+  u.contains("BROKEN PIPE") ||
+  u.contains("CONNECTION RESET") ||
+  u.contains("NO CONNECTION TO THE SERVER") ||
+  u.contains("CONNECTION CLOSED") ||
+  u.contains("CONNECTION REFUSED")
 }
 
 ///|

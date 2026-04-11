@@ -377,6 +377,7 @@ pub(all) struct AppState {
   in_transaction : Bool
   running_query : RunningQuery?
   cancel_requested : Bool
+  conn_lost : Bool
   group : @async.TaskGroup[Unit]
 }
 
@@ -418,6 +419,7 @@ pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
     in_transaction: false,
     running_query: None,
     cancel_requested: false,
+    conn_lost: false,
     group,
   }
 }
@@ -634,6 +636,30 @@ pub async fn AppState::refresh_schema(self : AppState) -> AppState {
 }
 
 ///|
+/// Attempt to reconnect to the database using the current ConnForm parameters.
+/// Called automatically when a connection-loss error is detected.
+/// On success, stays on the Main screen with a fresh connection.
+/// On failure, stays on Main with an error status so the user can use Ctrl+D.
+pub async fn AppState::attempt_reconnect(self : AppState) -> AppState {
+  match self.conn {
+    Some(conn) => conn.close()
+    None => ()
+  }
+  let state = { ..self, conn: None, conn_lost: false }
+  let connected = state.do_connect()
+  if connected.conn is Some(_) {
+    { ..connected, status: "Reconnected successfully" }
+  } else {
+    let err = connected.conn_form.error
+    {
+      ..connected,
+      status: "Reconnect failed: \{err}. Use Ctrl+D to go back to Connect screen.",
+      show_error: false,
+    }
+  }
+}
+
+///|
 /// Close the current connection and return to the Connect screen.
 pub fn AppState::disconnect(self : AppState) -> AppState {
   match self.conn {
@@ -650,6 +676,7 @@ pub fn AppState::disconnect(self : AppState) -> AppState {
     results: @widget.Table::new([], []),
     running_query: None,
     cancel_requested: false,
+    conn_lost: false,
     in_transaction: false,
     status: connect_status(conn_panel),
     show_error: false,

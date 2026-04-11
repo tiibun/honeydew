@@ -24,7 +24,7 @@
 ## Connection / Session
 
 - [x] 3.Disconnect and return to Connect screen without quitting
-- [ ] 9.Reconnect on lost connection (auto-detect and prompt)
+- [x] 9.Reconnect on lost connection (auto-detect and prompt)
 - [ ] 10.Connection indicator in menu bar (database name + connected status)
 - [x] 12.Transaction shortcuts: Ctrl+B=BEGIN, Ctrl+M=COMMIT, Ctrl+R=ROLLBACK (with indicator when inside a transaction)
 
