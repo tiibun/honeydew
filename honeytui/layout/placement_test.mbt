@@ -39,8 +39,9 @@ test "Placement resolves percentages after margins" {
 ///|
 test "Placement::centered builds a centered placement" {
   let area = @layout.Rect::new(1, 2, 120, 29)
-  let rect = @layout.Placement::centered(@layout.AtMost(82), @layout.AtMost(16))
-    .resolve(area)
+  let rect = @layout.Placement::centered(@layout.AtMost(82), @layout.AtMost(16)).resolve(
+    area,
+  )
   assert_eq(rect, @layout.Rect::new(20, 8, 82, 16))
 }
 
