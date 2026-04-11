@@ -14,13 +14,10 @@ pub fn render_connect(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     },
   )
   // Outer box: up to 82 wide, 16 tall, centred
-  let box_w = if content.width > 84 { 82 } else { content.width }
-  let box_h = 16
-  let bx = if box_w < content.width { (content.width - box_w) / 2 } else { 0 }
-  let by = if box_h < content.height { (content.height - box_h) / 2 } else { 0 }
-  let bw = if box_w < content.width { box_w } else { content.width }
-  let bh = if box_h < content.height { box_h } else { content.height }
-  let box_area = @layout.Rect::new(content.x + bx, content.y + by, bw, bh)
+  let box_area = @layout.Placement::centered(
+    @layout.AtMost(82),
+    @layout.AtMost(16),
+  ).resolve(content)
   let form = state.conn_form
   let kind_label = @app.DbKind::label(db_kind(form.kind_idx))
   let outer_block = @widget.Block::new()
@@ -29,20 +26,7 @@ pub fn render_connect(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     .border_style(@style.Style::default().fg(@style.Cyan))
     .title_style(@style.Style::default().fg(@style.Yellow))
   frame.render_widget(outer_block, box_area)
-  let inner = @layout.Rect::new(
-    box_area.x + 1,
-    box_area.y + 1,
-    if box_area.width > 2 {
-      box_area.width - 2
-    } else {
-      0
-    },
-    if box_area.height > 2 {
-      box_area.height - 2
-    } else {
-      0
-    },
-  )
+  let inner = box_area.inner(1)
   // Split inner area: left=22, gap=1, right=rest
   let left_w = 22
   let gap = 1

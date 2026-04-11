@@ -9,6 +9,7 @@ Built from scratch as a learning project.
 - Buffer-based rendering with diff updates (only changed cells are redrawn)
 - ANSI color and style support (foreground, background, bold, italic, etc.)
 - Flexbox-inspired layout system (horizontal/vertical splits)
+- Overlay placement primitives for centered and anchored dialogs
 - Widget trait for composable UI components
 - Raw mode terminal input
 

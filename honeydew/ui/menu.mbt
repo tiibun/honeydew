@@ -32,26 +32,10 @@ pub fn render_error_overlay(
   state : @app.AppState,
 ) -> Unit {
   let area = frame.size()
-  let overlay_w = if area.width > 66 { 64 } else { area.width }
-  let overlay_h = 8
-  let ox = (area.width - overlay_w) / 2
-  let oy = (area.height - overlay_h) / 2
-  let overlay_area = @layout.Rect::new(
-    if ox > 0 {
-      ox
-    } else {
-      0
-    },
-    if oy > 0 {
-      oy
-    } else {
-      0
-    },
-    overlay_w,
-    overlay_h,
-  )
-  let inner_h = overlay_h - 2
-  let inner_w = overlay_w - 2
+  let overlay_area = @layout.Placement::centered(
+    @layout.AtMost(64),
+    @layout.AtMost(8),
+  ).resolve(area)
   let block = @widget.Block::new()
     .title(" Error Details ")
     .borders(@widget.Borders::all())
@@ -60,17 +44,16 @@ pub fn render_error_overlay(
       @style.Style::default().fg(@style.Red).add_modifier(@style.bold),
     )
   frame.render_widget(block, overlay_area)
-  let inner = @layout.Rect::new(
-    overlay_area.x + 1,
-    overlay_area.y + 1,
-    inner_w,
-    inner_h,
-  )
+  let inner = overlay_area.inner(1)
   let msg_area = @layout.Rect::new(
     inner.x,
     inner.y,
     inner.width,
-    inner.height - 1,
+    if inner.height > 1 {
+      inner.height - 1
+    } else {
+      0
+    },
   )
   frame.render_widget(
     @widget.Paragraph::new(state.status).style(
@@ -80,9 +63,13 @@ pub fn render_error_overlay(
   )
   let hint_area = @layout.Rect::new(
     inner.x,
-    inner.y + inner.height - 1,
+    inner.y + (if inner.height > 0 { inner.height - 1 } else { 0 }),
     inner.width,
-    1,
+    if inner.height > 0 {
+      1
+    } else {
+      0
+    },
   )
   frame.render_widget(
     @widget.Paragraph::new("any key to close").style(
@@ -99,15 +86,10 @@ pub fn render_help_overlay(
   state : @app.AppState,
 ) -> Unit {
   let area = frame.size()
-  let help_w = 50
-  let help_h = 13
-  let hx = (area.width - help_w) / 2
-  let hy = (area.height - help_h) / 2
-  let ox = if hx > 0 { hx } else { 0 }
-  let oy = if hy > 0 { hy } else { 0 }
-  let ow = if help_w < area.width { help_w } else { area.width }
-  let oh = if help_h < area.height { help_h } else { area.height }
-  let overlay_area = @layout.Rect::new(area.x + ox, area.y + oy, ow, oh)
+  let overlay_area = @layout.Placement::centered(
+    @layout.AtMost(50),
+    @layout.AtMost(13),
+  ).resolve(area)
   let content = match state.screen {
     @app.Connect =>
       " Tab / Shift-Tab  next / prev field\n" +
