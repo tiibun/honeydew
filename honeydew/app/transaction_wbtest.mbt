@@ -145,6 +145,45 @@ async test "menu_bar_left_label returns correct label for transaction state" {
 }
 
 ///|
+/// Verify that `menu_bar_left_label` includes the database name when connected.
+async test "menu_bar_left_label shows db kind and name when connected" {
+  @async.with_task_group(group => {
+    let conn = match @sqlite.SqliteConn::open(":memory:") {
+      Ok(c) => c
+      Err(e) => fail("open failed: \{e}")
+    }
+    let state = {
+      ..AppState::new(group),
+      conn: Some(Sqlite(conn)),
+      conn_form: {
+        ..ConnForm::new(),
+        database: @widget.Input::new().with_value("mydb.db"),
+      },
+      screen: Main,
+    }
+    let label = state.menu_bar_left_label()
+    assert_true(label.contains("SQLite"))
+    assert_true(label.contains("mydb.db"))
+    match state.conn {
+      Some(h) => h.close()
+      None => ()
+    }
+  })
+}
+
+///|
+/// Verify that `menu_bar_left_label` shows no db info when not connected.
+async test "menu_bar_left_label shows no db info when not connected" {
+  @async.with_task_group(group => {
+    let state = AppState::new(group)
+    let label = state.menu_bar_left_label()
+    assert_true(label.contains("honeydew"))
+    assert_false(label.contains("SQLite"))
+    assert_false(label.contains("["))
+  })
+}
+
+///|
 /// `stmt_opens_txn` classifies statements correctly.
 test "stmt_opens_txn recognises BEGIN and START TRANSACTION" {
   assert_eq(stmt_opens_txn("BEGIN"), true)

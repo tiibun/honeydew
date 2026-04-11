@@ -857,13 +857,25 @@ pub fn AppState::sync_txn_flag_for_stmt(
 
 ///|
 /// Returns the left-side text for the menu bar.
-/// Displays `[TXN]` when a transaction is active so that `render_menu_bar`
-/// and tests share the same label logic.
+/// Shows the connected database kind and name when on the Main screen.
+/// Appends `[TXN]` when a transaction is active.
 pub fn AppState::menu_bar_left_label(self : AppState) -> String {
+  let db_info = match self.conn {
+    None => ""
+    Some(_) => {
+      let kind = match self.conn_form.kind_idx {
+        0 => "SQLite"
+        1 => "PG"
+        _ => "MySQL"
+      }
+      let db = self.conn_form.database.value()
+      " [\{kind}:\{db}]"
+    }
+  }
   if self.in_transaction {
-    " honeydew  [TXN] "
+    " honeydew\{db_info}  [TXN] "
   } else {
-    " honeydew "
+    " honeydew\{db_info} "
   }
 }
 
