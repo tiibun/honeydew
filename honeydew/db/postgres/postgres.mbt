@@ -57,7 +57,7 @@ pub async fn PgConn::query(
             rows.push(
               row.values.map(fn(v) {
                 match v {
-                  None => "NULL"
+                  None => @db.null_value
                   Some(s) => s
                 }
               }),

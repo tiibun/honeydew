@@ -6,8 +6,14 @@ pub(all) struct ColumnInfo {
 }
 
 ///|
+/// Sentinel value used to represent a SQL NULL cell.
+/// Backends store NULL as this string; the UI renders it as "NULL" in a
+/// distinct (dim) style so it is visually different from the empty string "".
+pub let null_value : String = "\u0000"
+
+///|
 /// The result of a SELECT query: column names and rows of string values.
-/// All cell values are represented as strings (NULL becomes "NULL").
+/// SQL NULL is encoded as `null_value` ("\x00"), not the string "NULL".
 pub(all) struct QueryResult {
   columns : Array[String]
   rows : Array[Array[String]]

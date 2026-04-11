@@ -3,32 +3,52 @@
 
 ///|
 test "all_statements splits on semicolons" {
-  inspect(all_statements("SELECT 1; SELECT 2; SELECT 3"), content=(#|["SELECT 1", "SELECT 2", "SELECT 3"]
-  ))
+  inspect(
+    all_statements("SELECT 1; SELECT 2; SELECT 3"),
+    content=(
+      #|["SELECT 1", "SELECT 2", "SELECT 3"]
+    ),
+  )
 }
 
 ///|
 test "all_statements single statement without semicolon" {
-  inspect(all_statements("SELECT 1"), content=(#|["SELECT 1"]
-  ))
+  inspect(
+    all_statements("SELECT 1"),
+    content=(
+      #|["SELECT 1"]
+    ),
+  )
 }
 
 ///|
 test "all_statements ignores semicolon inside single-quoted string" {
-  inspect(all_statements("SELECT ';' AS s; SELECT 1"), content=(#|["SELECT ';' AS s", "SELECT 1"]
-  ))
+  inspect(
+    all_statements("SELECT ';' AS s; SELECT 1"),
+    content=(
+      #|["SELECT ';' AS s", "SELECT 1"]
+    ),
+  )
 }
 
 ///|
 test "all_statements empty string returns empty array" {
-  inspect(all_statements(""), content=(#|[]
-  ))
+  inspect(
+    all_statements(""),
+    content=(
+      #|[]
+    ),
+  )
 }
 
 ///|
 test "all_statements trims whitespace and skips blank segments" {
-  inspect(all_statements("  SELECT 1 ;  ;  SELECT 2  "), content=(#|["SELECT 1", "SELECT 2"]
-  ))
+  inspect(
+    all_statements("  SELECT 1 ;  ;  SELECT 2  "),
+    content=(
+      #|["SELECT 1", "SELECT 2"]
+    ),
+  )
 }
 
 ///|

@@ -89,7 +89,13 @@ pub fn MysqlConn::async_result(
     let r = []
     for col = 0; col < ncols; col = col + 1 {
       let n = hd_mysql_async_getvalue(row, col, buf, buf.length())
-      r.push(if n >= 0 { @db.fixed_bytes_to_str(buf, n) } else { "NULL" })
+      r.push(
+        if n >= 0 {
+          @db.fixed_bytes_to_str(buf, n)
+        } else {
+          @db.null_value
+        },
+      )
     }
     rows.push(r)
   }
@@ -131,7 +137,13 @@ pub fn MysqlConn::query(
     let r = []
     for col = 0; col < ncols; col = col + 1 {
       let n = hd_mysql_getvalue(res_id, row, col, buf, buf.length())
-      r.push(if n >= 0 { @db.fixed_bytes_to_str(buf, n) } else { "NULL" })
+      r.push(
+        if n >= 0 {
+          @db.fixed_bytes_to_str(buf, n)
+        } else {
+          @db.null_value
+        },
+      )
     }
     rows.push(r)
   }

@@ -279,17 +279,29 @@ fn render_row(
       buf.set(cx, y, @buffer.Cell::new("│", sep_style))
       cx = cx + 1
     }
-    // Cell value
+    // Cell value — "\x00" is the NULL sentinel: render as "NULL" in dim style
     let raw = if col_idx < values.length() { values[col_idx] } else { "" }
-    let cell_text = if raw.length() > col_w {
-      raw[:col_w].to_string()
+    let is_null = raw == "\u0000"
+    let display = if is_null { "NULL" } else { raw }
+    let cell_text = if display.length() > col_w {
+      display[:col_w].to_string()
     } else {
-      let pad = col_w - raw.length()
-      "\{raw}\{String::make(pad, ' ')}"
+      let pad = col_w - display.length()
+      "\{display}\{String::make(pad, ' ')}"
     }
-    let cell_style = match selected_col {
-      Some(selected) => if col_idx == selected { selected_style } else { style }
-      None => style
+    let null_style = @style.Style::default().fg(@style.BrightBlack)
+    let cell_style = if is_null {
+      null_style
+    } else {
+      match selected_col {
+        Some(selected) =>
+          if col_idx == selected {
+            selected_style
+          } else {
+            style
+          }
+        None => style
+      }
     }
     buf.set_string(cx, y, cell_text, cell_style)
     cx = cx + col_w

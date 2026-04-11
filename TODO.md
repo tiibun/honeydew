@@ -17,7 +17,7 @@
 
 - [x] 13.Show execution time (e.g. "42 ms")
 - [x] 14.Show affected rows for INSERT / UPDATE / DELETE
-- [ ] 8.Distinguish NULL from empty string visually
+- [x] 8.Distinguish NULL from empty string visually
 - [x] 15.Copy selected cell value to clipboard
 - [x] 18.Export results as CSV
 

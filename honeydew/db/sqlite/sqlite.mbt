@@ -79,7 +79,13 @@ pub fn SqliteConn::async_result(
     let r : Array[String] = []
     for col = 0; col < ncols; col = col + 1 {
       let n = hd_sqlite_async_value(row, col, buf, buf.length())
-      r.push(if n >= 0 { @db.fixed_bytes_to_str(buf, n) } else { "NULL" })
+      r.push(
+        if n >= 0 {
+          @db.fixed_bytes_to_str(buf, n)
+        } else {
+          @db.null_value
+        },
+      )
     }
     rows.push(r)
   }
@@ -199,7 +205,13 @@ fn read_row(
   let row = []
   for col = 0; col < ncols; col = col + 1 {
     let n = hd_sqlite_column_text(stmt_id, col, buf, buf.length())
-    row.push(if n >= 0 { @db.fixed_bytes_to_str(buf, n) } else { "NULL" })
+    row.push(
+      if n >= 0 {
+        @db.fixed_bytes_to_str(buf, n)
+      } else {
+        @db.null_value
+      },
+    )
   }
   row
 }
