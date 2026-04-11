@@ -370,7 +370,7 @@ async fn run_query_at_cursor(state : @app.AppState) -> @app.AppState {
     None => { ..state, status: "Error: not connected", show_error: false }
     Some(conn) => {
       let started = @bench.monotonic_clock_start()
-      // Try non-blocking path first (SQLite async worker)
+      // Non-blocking path: SQLite and MySQL use a background C worker thread.
       if conn.async_start(stmt) {
         {
           ..state,
@@ -380,8 +380,22 @@ async fn run_query_at_cursor(state : @app.AppState) -> @app.AppState {
           show_error: false,
         }
       } else {
-        // Fallback: blocking execution (Postgres, MySQL)
-        run_query_sync(state, conn, stmt, started)
+        // Postgres: spawn an async task so Ctrl+C remains responsive.
+        match conn.spawn_pg_task(state.group, stmt) {
+          Some((task, cancel)) =>
+            {
+              ..state,
+              running_query: Some(
+                @app.RunningQuery::PgTask(task~, cancel~, started~),
+              ),
+              cancel_requested: false,
+              status: "Running query... Ctrl+C to cancel",
+              show_error: false,
+            }
+          None =>
+            // Fallback: blocking (should not happen with current backends)
+            run_query_sync(state, conn, stmt, started)
+        }
       }
     }
   }
@@ -440,7 +454,7 @@ async fn run_all_queries(state : @app.AppState) -> @app.AppState {
     Some(conn) => {
       let started = @bench.monotonic_clock_start()
       let first_sql = stmts[0]
-      // Try async path for the first statement
+      // Non-blocking path: SQLite and MySQL step statement-by-statement.
       if conn.async_start(first_sql) {
         let total = stmts.length()
         {
@@ -463,8 +477,23 @@ async fn run_all_queries(state : @app.AppState) -> @app.AppState {
           show_error: false,
         }
       } else {
-        // Fallback: blocking execution for all statements
-        run_all_queries_sync(state, conn, stmts, started)
+        // Postgres: run all statements inside a single async task.
+        match
+          conn.spawn_pg_run_all_task(state.group, stmts, state.in_transaction) {
+          Some((task, cancel)) =>
+            {
+              ..state,
+              running_query: Some(
+                @app.RunningQuery::PgTask(task~, cancel~, started~),
+              ),
+              cancel_requested: false,
+              status: "Running \{stmts.length()} statement(s)... Ctrl+C to cancel",
+              show_error: false,
+            }
+          None =>
+            // Fallback: blocking (should not happen with current backends)
+            run_all_queries_sync(state, conn, stmts, started)
+        }
       }
     }
   }
@@ -830,18 +859,27 @@ fn finish_pg_task(
         show_error: false,
       }
     PgFailed(msg~) => {
-      let lost = is_connection_lost(msg)
+      let u = msg.to_upper()
+      let cancelled = state.cancel_requested ||
+        u.contains("CANCELING STATEMENT") ||
+        u.contains("QUERY_CANCELED")
+      let lost = !cancelled && is_connection_lost(msg)
       {
         ..state,
         running_query: None,
         cancel_requested: false,
         conn_lost: lost,
-        status: if lost {
+        status: if cancelled {
+          with_execution_time(
+            "Query cancelled",
+            @bench.monotonic_clock_end(started),
+          )
+        } else if lost {
           "Connection lost — reconnecting..."
         } else {
-          msg
+          with_execution_time(msg, @bench.monotonic_clock_end(started))
         },
-        show_error: !lost,
+        show_error: !lost && !cancelled,
       }
     }
     PgSingle(result~) =>

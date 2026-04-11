@@ -269,8 +269,110 @@ pub fn DbHandle::close(self : DbHandle) -> Unit {
 pub fn DbHandle::cancel(self : DbHandle) -> Unit {
   match self {
     Sqlite(c) => c.interrupt()
-    Postgres(_) => ()
+    Postgres(_) => () // Postgres cancel goes through cancel_token, not here
     Mysql(c) => c.async_cancel()
+  }
+}
+
+///|
+/// Spawn a background async task that executes a single SQL statement on a
+/// Postgres connection and returns the result as a `PgQueryResult`.
+/// Returns None for non-Postgres backends.
+pub fn DbHandle::spawn_pg_task(
+  self : DbHandle,
+  group : @async.TaskGroup[Unit],
+  sql : String,
+) -> (@async.Task[PgQueryResult], async () -> Unit)? {
+  match self {
+    Postgres(pg_conn) => {
+      let cancel_token = pg_conn.cancel_token()
+      let task = group.spawn(async fn() {
+        match (pg_conn.query(sql) catch { err => Err(err.to_string()) }) {
+          Ok(result) => PgSingle(result~)
+          Err(msg) => PgFailed(msg~)
+        }
+      })
+      let cancel : async () -> Unit = async fn() { cancel_token.cancel() }
+      Some((task, cancel))
+    }
+    _ => None
+  }
+}
+
+///|
+/// Spawn a background async task that executes all statements sequentially on a
+/// Postgres connection, accumulating results into a `PgRunAll` result.
+/// Returns None for non-Postgres backends.
+pub fn DbHandle::spawn_pg_run_all_task(
+  self : DbHandle,
+  group : @async.TaskGroup[Unit],
+  stmts : Array[String],
+  in_txn_init : Bool,
+) -> (@async.Task[PgQueryResult], async () -> Unit)? {
+  match self {
+    Postgres(pg_conn) => {
+      let cancel_token = pg_conn.cancel_token()
+      let task = group.spawn(async fn() {
+        let mut last_result = @db.QueryResult::empty()
+        let mut total_rows = 0
+        let mut total_affected = 0
+        let mut has_affected = false
+        let mut stmt_count = 0
+        let mut in_txn = in_txn_init
+        let total_stmts = stmts.length()
+        for stmt in stmts {
+          match (pg_conn.query(stmt) catch { err => Err(err.to_string()) }) {
+            Ok(result) => {
+              last_result = result
+              total_rows = total_rows + result.rows.length()
+              match result.affected_rows {
+                Some(n) => {
+                  total_affected = total_affected + n
+                  has_affected = true
+                }
+                None => ()
+              }
+              stmt_count = stmt_count + 1
+              if stmt_opens_txn(stmt) {
+                in_txn = true
+              } else if stmt_closes_txn(stmt) {
+                in_txn = false
+              }
+            }
+            Err(msg) => {
+              // PostgreSQL cancellation error → return partial results so the
+              // caller can display "Cancelled after N/M statements".
+              let u = msg.to_upper()
+              if u.contains("CANCELING STATEMENT") ||
+                u.contains("QUERY_CANCELED") {
+                return PgRunAll(
+                  last_result~,
+                  total_rows~,
+                  total_affected~,
+                  has_affected~,
+                  stmt_count~,
+                  total_stmts~,
+                  in_txn~,
+                )
+              }
+              return PgFailed(msg~)
+            }
+          }
+        }
+        PgRunAll(
+          last_result~,
+          total_rows~,
+          total_affected~,
+          has_affected~,
+          stmt_count~,
+          total_stmts~,
+          in_txn~,
+        )
+      })
+      let cancel : async () -> Unit = async fn() { cancel_token.cancel() }
+      Some((task, cancel))
+    }
+    _ => None
   }
 }
 
