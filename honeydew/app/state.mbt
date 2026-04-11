@@ -17,6 +17,16 @@ pub async fn build_schema_tree(
       items.push(@widget.TreeItem::leaf(t, 2, t))
     }
   }
+  let views = match handle.views() {
+    Ok(v) => v
+    Err(_) => []
+  }
+  if views.length() > 0 {
+    items.push(@widget.TreeItem::node("Views", 1))
+    for v in views {
+      items.push(@widget.TreeItem::leaf(v, 2, v))
+    }
+  }
   @widget.Tree::new(items)
 }
 
@@ -203,6 +213,15 @@ pub async fn DbHandle::tables(self : DbHandle) -> Result[Array[String], String] 
     Sqlite(c) => c.tables()
     Postgres(c) => c.tables()
     Mysql(c) => c.tables()
+  }
+}
+
+///|
+pub async fn DbHandle::views(self : DbHandle) -> Result[Array[String], String] {
+  match self {
+    Sqlite(c) => c.views()
+    Postgres(c) => c.views()
+    Mysql(c) => c.views()
   }
 }
 

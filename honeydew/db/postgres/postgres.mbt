@@ -92,6 +92,20 @@ pub async fn PgConn::tables(self : PgConn) -> Result[Array[String], String] {
 }
 
 ///|
+pub async fn PgConn::views(self : PgConn) -> Result[Array[String], String] {
+  match
+    self.query(
+      "SELECT viewname FROM pg_views WHERE schemaname='public' ORDER BY viewname",
+    ) {
+    Ok(result) =>
+      Ok(
+        result.rows.map(fn(row) { if row.length() > 0 { row[0] } else { "" } }),
+      )
+    Err(e) => Err(e)
+  }
+}
+
+///|
 fn parse_affected_rows(tag : String) -> Int? {
   if !@db.is_write_statement(tag) {
     return None

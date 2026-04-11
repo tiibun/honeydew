@@ -150,6 +150,18 @@ pub fn SqliteConn::tables(self : SqliteConn) -> Result[Array[String], String] {
 }
 
 ///|
+pub fn SqliteConn::views(self : SqliteConn) -> Result[Array[String], String] {
+  match
+    self.query("SELECT name FROM sqlite_master WHERE type='view' ORDER BY name") {
+    Ok(result) =>
+      Ok(
+        result.rows.map(fn(row) { if row.length() > 0 { row[0] } else { "" } }),
+      )
+    Err(e) => Err(e)
+  }
+}
+
+///|
 /// List columns of a table with their declared types.
 pub fn SqliteConn::columns(
   self : SqliteConn,

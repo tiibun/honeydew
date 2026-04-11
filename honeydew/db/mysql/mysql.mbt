@@ -141,7 +141,24 @@ pub fn MysqlConn::query(
 
 ///|
 pub fn MysqlConn::tables(self : MysqlConn) -> Result[Array[String], String] {
-  match self.query("SHOW TABLES") {
+  match
+    self.query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema=database() AND table_type='BASE TABLE' ORDER BY table_name",
+    ) {
+    Ok(result) =>
+      Ok(
+        result.rows.map(fn(row) { if row.length() > 0 { row[0] } else { "" } }),
+      )
+    Err(e) => Err(e)
+  }
+}
+
+///|
+pub fn MysqlConn::views(self : MysqlConn) -> Result[Array[String], String] {
+  match
+    self.query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema=database() AND table_type='VIEW' ORDER BY table_name",
+    ) {
     Ok(result) =>
       Ok(
         result.rows.map(fn(row) { if row.length() > 0 { row[0] } else { "" } }),
