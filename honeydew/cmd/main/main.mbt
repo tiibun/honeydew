@@ -140,7 +140,13 @@ async fn handle_key(
           Err(_) => (80, 24)
         }
         match panel_at(cols, rows, mx, my) {
-          Some(panel) => { ..state, focus: panel }
+          Some(panel) =>
+            if panel == @app.Schema {
+              let s2 = state.handle_schema_click(mx, my, cols, rows)
+              { ..s2, focus: @app.Schema }
+            } else {
+              { ..state, focus: panel }
+            }
           None => state
         }
       } else {
@@ -156,7 +162,7 @@ fn switch_to_form(state : @app.AppState, focus_idx : Int) -> @app.AppState {
   {
     ..state,
     conn_panel: @app.Form,
-    conn_form: { ..state.conn_form, focus_idx },
+    conn_form: { ..state.conn_form, focus_idx, },
     status: @app.connect_status(@app.Form),
   }
 }
@@ -181,7 +187,7 @@ fn dispatch(state : @app.AppState, key : @terminal.Key) -> @app.AppState {
     @app.Main =>
       match state.focus {
         @app.Schema =>
-          { ..state, schema_list: state.schema_list.handle_key(key) }
+          { ..state, schema_tree: state.schema_tree.handle_key(key) }
         @app.Editor => {
           let new_input = state.sql_input.handle_key(key)
           let highlighted = apply_highlight(new_input)

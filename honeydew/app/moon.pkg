@@ -4,6 +4,7 @@ import {
   "tiibun/honeydew/db/sqlite",
   "tiibun/honeydew/db/postgres",
   "tiibun/honeydew/db/mysql",
+  "tiibun/honeytui/layout",
   "tiibun/honeytui/terminal",
   "tiibun/honeytui/widget",
   "moonbitlang/async" @async,

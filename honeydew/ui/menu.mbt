@@ -32,8 +32,8 @@ pub fn render_help_overlay(
   state : @app.AppState,
 ) -> Unit {
   let area = frame.size()
-  let help_w = 46
-  let help_h = 11
+  let help_w = 50
+  let help_h = 13
   let hx = (area.width - help_w) / 2
   let hy = (area.height - help_h) / 2
   let ox = if hx > 0 { hx } else { 0 }
@@ -55,6 +55,8 @@ pub fn render_help_overlay(
       " Tab              switch panel\n" +
       " Ctrl+Enter       run SQL (editor only)\n" +
       " ↑ / ↓           scroll / select\n" +
+      " Space / Enter    expand/collapse (objects)\n" +
+      " ← / →           collapse / expand (objects)\n" +
       " Ctrl+Q           quit\n" +
       "\n" +
       " ?                close this help"

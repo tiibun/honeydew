@@ -42,11 +42,11 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     @style.Style::default().fg(@style.BrightBlack)
   }
   let schema_block = @widget.Block::new()
-    .title(" Schema ")
+    .title(" Objects ")
     .borders(@widget.Borders::all())
     .border_style(schema_border_style)
-  let list = state.schema_list.block(schema_block)
-  frame.render_widget(list, schema_area)
+  let tree = state.schema_tree.block(schema_block)
+  frame.render_widget(tree, schema_area)
   // ---- SQL editor ----
   let editor_focused = state.focus == @app.Editor
   let editor_border_style = if editor_focused {

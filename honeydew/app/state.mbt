@@ -1,4 +1,26 @@
 ///|
+/// Build a collapsible Tree widget for the given DB handle.
+/// Structure: root (db name) → "Tables" group → individual table entries.
+pub async fn build_schema_tree(
+  handle : DbHandle,
+  db_label : String,
+) -> @widget.Tree {
+  let items : Array[@widget.TreeItem] = []
+  items.push(@widget.TreeItem::node(db_label, 0))
+  let tables = match handle.tables() {
+    Ok(t) => t
+    Err(_) => []
+  }
+  if tables.length() > 0 {
+    items.push(@widget.TreeItem::node("Tables", 1))
+    for t in tables {
+      items.push(@widget.TreeItem::leaf(t, 2, t))
+    }
+  }
+  @widget.Tree::new(items)
+}
+
+///|
 /// Which database type to connect to.
 pub(all) enum DbKind {
   Sqlite
@@ -214,8 +236,7 @@ pub(all) struct AppState {
   conn_panel : ConnPanel
   profiles : Array[@config.ConnProfile]
   profile_idx : Int
-  schema_items : Array[String]
-  schema_list : @widget.List
+  schema_tree : @widget.Tree
   sql_input : @widget.TextArea
   results : @widget.Table
   focus : Panel
@@ -243,12 +264,17 @@ pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
     } else {
       -1
     },
-    schema_items: [],
-    schema_list: @widget.List::new([]),
+    schema_tree: @widget.Tree::new([]),
     sql_input: @widget.TextArea::new(),
     results: @widget.Table::new([], []),
     focus: Editor,
-    status: connect_status(if profiles.length() > 0 { ProfileList } else { Form }),
+    status: connect_status(
+      if profiles.length() > 0 {
+        ProfileList
+      } else {
+        Form
+      },
+    ),
     should_quit: false,
     show_help: false,
     group,
@@ -308,7 +334,12 @@ pub fn AppState::load_selected_profile(self : AppState) -> AppState {
     focus_idx: 2,
     error: "",
   }
-  { ..self, conn_form: new_form, conn_panel: Form, status: connect_status(Form) }
+  {
+    ..self,
+    conn_form: new_form,
+    conn_panel: Form,
+    status: connect_status(Form),
+  }
 }
 
 ///|
@@ -428,23 +459,48 @@ pub async fn AppState::do_connect(self : AppState) -> AppState {
   }
   match result {
     Ok(handle) => {
-      let tables = match handle.tables() {
-        Ok(t) => t
-        Err(_) => []
-      }
-      let list = @widget.List::new(tables)
+      let db_label = form.database.value()
+      let tree = build_schema_tree(handle, db_label)
       {
         ..self,
         conn: Some(handle),
         screen: Main,
-        schema_items: tables,
-        schema_list: list,
+        schema_tree: tree,
         focus: Editor,
         status: "Tab=switch panel  Ctrl+Enter=run  Ctrl+Q=quit",
       }
     }
     Err(msg) => { ..self, conn_form: { ..form, error: msg } }
   }
+}
+
+///|
+/// Return the table name of the currently selected schema-tree item,
+/// or None when the selection is on a header node (root or group).
+pub fn AppState::selected_schema_table(self : AppState) -> String? {
+  self.schema_tree.selected_data()
+}
+
+///|
+/// Handle a mouse click inside the schema (Objects) panel.
+/// `term_cols` and `term_rows` are the current terminal dimensions.
+/// Computes the panel's outer area from the layout geometry and delegates to
+/// `Tree::handle_click`, which toggles expandable nodes and selects leaves.
+pub fn AppState::handle_schema_click(
+  self : AppState,
+  mx : Int,
+  my : Int,
+  term_cols : Int,
+  term_rows : Int,
+) -> AppState {
+  // Replicate the layout geometry from render_main:
+  //   Row 1          : menu bar
+  //   Row 2..rows-1  : main content
+  //   Row rows       : status bar
+  //   Column 1..schema_w : schema panel (28% of total width)
+  let schema_w = term_cols * 28 / 100
+  let schema_area = @layout.Rect::new(1, 2, schema_w, term_rows - 2)
+  { ..self, schema_tree: self.schema_tree.handle_click(mx, my, schema_area) }
 }
 
 ///|

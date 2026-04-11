@@ -123,6 +123,35 @@ pub fn TextArea::with_highlight(Self, Int, Int) -> Self
 pub fn TextArea::with_value(Self, String) -> Self
 pub impl Widget for TextArea
 
+pub struct Tree {
+  items : Array[TreeItem]
+  selected : Int
+  offset : Int
+  style : @style.Style
+  selected_style : @style.Style
+  block : Block?
+}
+pub fn Tree::block(Self, Block) -> Self
+pub fn Tree::handle_click(Self, Int, Int, @layout.Rect) -> Self
+pub fn Tree::handle_key(Self, @terminal.Key) -> Self
+pub fn Tree::new(Array[TreeItem]) -> Self
+pub fn Tree::selected_data(Self) -> String?
+pub fn Tree::selected_item(Self) -> TreeItem?
+pub fn Tree::selected_style(Self, @style.Style) -> Self
+pub fn Tree::visible_count(Self) -> Int
+pub impl Widget for Tree
+
+pub(all) struct TreeItem {
+  label : String
+  depth : Int
+  expandable : Bool
+  expanded : Bool
+  data : String
+}
+pub fn TreeItem::collapsed_node(String, Int) -> Self
+pub fn TreeItem::leaf(String, Int, String) -> Self
+pub fn TreeItem::node(String, Int) -> Self
+
 // Type aliases
 
 // Traits

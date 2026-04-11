@@ -13,6 +13,10 @@ import {
 }
 
 // Values
+pub async fn build_schema_tree(DbHandle, String) -> @widget.Tree
+
+pub fn connect_status(ConnPanel) -> String
+
 pub fn str_to_int(String, Int) -> Int
 
 // Errors
@@ -25,8 +29,7 @@ pub(all) struct AppState {
   conn_panel : ConnPanel
   profiles : Array[@config.ConnProfile]
   profile_idx : Int
-  schema_items : Array[String]
-  schema_list : @widget.List
+  schema_tree : @widget.Tree
   sql_input : @widget.TextArea
   results : @widget.Table
   focus : Panel
@@ -37,11 +40,13 @@ pub(all) struct AppState {
 }
 pub fn AppState::delete_selected_profile(Self) -> Self
 pub async fn AppState::do_connect(Self) -> Self
+pub fn AppState::handle_schema_click(Self, Int, Int, Int, Int) -> Self
 pub fn AppState::load_selected_profile(Self) -> Self
 pub fn AppState::navigate_profiles(Self, @terminal.Key) -> Self
 pub fn AppState::new(@async.TaskGroup[Unit]) -> Self
 pub fn AppState::profile_names(Self) -> Array[String]
 pub fn AppState::save_current_profile(Self) -> Self
+pub fn AppState::selected_schema_table(Self) -> String?
 
 pub(all) struct ConnForm {
   name : @widget.Input

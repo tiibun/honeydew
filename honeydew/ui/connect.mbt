@@ -130,9 +130,9 @@ fn render_profile_panel(
     let hint_y = inner.y + (if inner.height > 1 { inner.height - 1 } else { 0 })
     let hint_row = @layout.Rect::new(inner.x, hint_y, inner.width, 1)
     let hint = if names.length() == 0 {
-      "保存なし"
+      "No profiles"
     } else {
-      "↑↓=選択"
+      "↑↓=navigate"
     }
     frame.render_widget(
       @widget.Paragraph::new(hint).style(
