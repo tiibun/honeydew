@@ -11,11 +11,7 @@ test "mysql async_start and poll completes for simple query" {
     Err(_) => return
   }
   assert_true(conn.async_start("SELECT 1 AS one"))
-  let mut attempts = 0
-  while conn.async_poll() == 1 && attempts < 100000 {
-    attempts = attempts + 1
-  }
-  let status = conn.async_poll()
+  let status = wait_for_async_status(conn)
   if status == 3 {
     let result = conn.async_result(false)
     conn.close()
@@ -36,3 +32,18 @@ test "mysql async_start and poll completes for simple query" {
   assert_eq(result.rows, [["1"]])
   conn.close()
 }
+
+///|
+fn wait_for_async_status(conn : @db_mysql.MysqlConn) -> Int {
+  let start = @bench.monotonic_clock_start()
+  let timeout_us = 1_000_000.0
+  let mut status = conn.async_poll()
+  while status == 1 && @bench.monotonic_clock_end(start) < timeout_us {
+    usleep(1_000)
+    status = conn.async_poll()
+  }
+  status
+}
+
+///|
+extern "c" fn usleep(usec : Int) -> Unit = "usleep"

@@ -4,6 +4,7 @@ import {
 
 import {
   "tiibun/honeydew/db/mysql" @db_mysql,
+  "moonbitlang/core/bench" @bench,
 } for "test"
 
 options(
