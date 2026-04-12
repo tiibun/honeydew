@@ -89,7 +89,9 @@ async fn handle_key_idle(
   match key {
     Char('?') => { ..state, show_help: true }
     Char('e') =>
-      if state.screen == @app.Main && state.status.contains("Error") {
+      if state.screen == @app.Main &&
+        state.focus != @app.Editor &&
+        state.status.contains("Error") {
         { ..state, show_error: true }
       } else {
         dispatch(state, key)
