@@ -263,6 +263,14 @@ async fn handle_key_idle(
 }
 
 ///|
+/// Convert DB rows for display: replace null_value sentinels with "NULL".
+fn display_rows(rows : Array[Array[String]]) -> Array[Array[String]] {
+  rows.map(fn(row) {
+    row.map(fn(cell) { if cell == @db.null_value { "NULL" } else { cell } })
+  })
+}
+
+///|
 fn switch_to_form(state : @app.AppState, focus_idx : Int) -> @app.AppState {
   {
     ..state,
@@ -490,7 +498,7 @@ fn finish_single(
           show_error: false,
         }
       } else {
-        let tbl = @widget.Table::new(result.columns, result.rows)
+        let tbl = @widget.Table::new(result.columns, display_rows(result.rows))
         let next = {
           ..state,
           results: tbl,
@@ -559,7 +567,10 @@ fn finish_run_all_step(
         show_error: false,
       }
     Ok(result) => {
-      let new_partial = @widget.Table::new(result.columns, result.rows)
+      let new_partial = @widget.Table::new(
+        result.columns,
+        display_rows(result.rows),
+      )
       let new_total_rows = total_rows + result.rows.length()
       let mut new_total_affected = total_affected
       let mut new_has_affected = has_affected
