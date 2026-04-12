@@ -134,6 +134,78 @@ fn render_form_panel(
   state : @app.AppState,
   area : @layout.Rect,
 ) -> Unit {
+  let preview_fields = selected_profile_preview_fields(state)
+  if state.conn_panel == @app.ProfileList && preview_fields.length() > 0 {
+    let block = @widget.Block::new()
+      .title(" Connection Info ")
+      .borders(@widget.Borders::all())
+      .border_style(@style.Style::default().fg(@style.BrightBlack))
+    frame.render_widget(block, area)
+    let inner = @layout.Rect::new(
+      area.x + 1,
+      area.y + 1,
+      if area.width > 2 {
+        area.width - 2
+      } else {
+        0
+      },
+      if area.height > 2 {
+        area.height - 2
+      } else {
+        0
+      },
+    )
+    let detail_rows = if inner.height > 1 {
+      inner.height - 1
+    } else {
+      inner.height
+    }
+    let visible_count = if preview_fields.length() < detail_rows {
+      preview_fields.length()
+    } else {
+      detail_rows
+    }
+    let label_w = 14
+    for i = 0; i < visible_count; i = i + 1 {
+      let (label, value) = preview_fields[i]
+      let row = @layout.Rect::new(inner.x, inner.y + i, inner.width, 1)
+      let value_w = if row.width > label_w { row.width - label_w } else { 0 }
+      let value_text = if value_w <= 3 {
+        ""
+      } else if @buffer.str_display_width(value) <= value_w {
+        value
+      } else {
+        @buffer.truncate_to_width(value, value_w - 3) + "..."
+      }
+      frame.render_widget(
+        @widget.Paragraph::new("\{label}:").style(
+          @style.Style::default().fg(@style.Cyan),
+        ),
+        @layout.Rect::new(row.x, row.y, label_w, 1),
+      )
+      frame.render_widget(
+        @widget.Paragraph::new(value_text).style(
+          @style.Style::default().fg(@style.White),
+        ),
+        @layout.Rect::new(row.x + label_w, row.y, value_w, 1),
+      )
+    }
+    if inner.height > 0 {
+      let hint_row = @layout.Rect::new(
+        inner.x,
+        inner.y + (inner.height - 1),
+        inner.width,
+        1,
+      )
+      frame.render_widget(
+        @widget.Paragraph::new("Enter=load into form").style(
+          @style.Style::default().fg(@style.BrightBlack),
+        ),
+        hint_row,
+      )
+    }
+    return
+  }
   let form_focus = state.conn_panel == @app.Form
   let border_style = if form_focus {
     @style.Style::default().fg(@style.Cyan)
@@ -269,5 +341,34 @@ fn db_kind(idx : Int) -> @app.DbKind {
     0 => @app.Sqlite
     1 => @app.Postgres
     _ => @app.Mysql
+  }
+}
+
+///|
+fn selected_profile_preview_fields(
+  state : @app.AppState,
+) -> Array[(String, String)] {
+  let n = state.profiles.length()
+  if state.profile_idx < 0 || state.profile_idx >= n {
+    return []
+  }
+  let profile = state.profiles[state.profile_idx]
+  let kind_label = @app.DbKind::label(db_kind(profile.kind_idx))
+  match profile.kind_idx {
+    0 =>
+      [
+        ("Name", profile.name),
+        ("DB", kind_label),
+        ("Database path", profile.database),
+      ]
+    _ =>
+      [
+        ("Name", profile.name),
+        ("DB", kind_label),
+        ("Host", profile.host),
+        ("Port", if profile.port > 0 { profile.port.to_string() } else { "" }),
+        ("Database", profile.database),
+        ("User", profile.username),
+      ]
   }
 }

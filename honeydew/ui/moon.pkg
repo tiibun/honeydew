@@ -6,3 +6,7 @@ import {
   "tiibun/honeytui/style",
   "tiibun/honeytui/widget",
 }
+
+import {
+  "moonbitlang/async" @async,
+} for "wbtest"
