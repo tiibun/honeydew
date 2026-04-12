@@ -91,38 +91,40 @@ pub fn render_help_overlay(
 ) -> Unit {
   let area = frame.size()
   let overlay_area = @layout.Placement::centered(
-    @layout.AtMost(50),
-    @layout.AtMost(16),
+    @layout.AtMost(68),
+    @layout.AtMost(20),
   ).resolve(area)
-  let content = match state.screen {
-    @app.Connect =>
-      " Tab / Shift-Tab  next / prev field\n" +
-      " ↑ / ↓           change DB type (when on DB row)\n" +
-      " Enter            connect / load profile\n" +
-      " Ctrl+S           save profile to keyring\n" +
-      " d                delete selected profile\n" +
-      " q / Ctrl+Q       quit\n" +
-      "\n" +
-      " ?                close this help"
-    @app.Main =>
-      " Tab              switch panel\n" +
-      " Ctrl+Enter       run statement at cursor\n" +
-      " F5               run all statements\n" +
-      " Ctrl+C           cancel running query\n" +
-      " Ctrl+S           export results as CSV\n" +
-      " Ctrl+D           disconnect (return to Connect)\n" +
-      " Ctrl+L           refresh schema browser\n" +
-      " Ctrl+B           BEGIN transaction\n" +
-      " Ctrl+M           COMMIT transaction\n" +
-      " Ctrl+R           ROLLBACK transaction\n" +
-      " ↑ / ↓           navigate; editor recalls history at top/bottom\n" +
-      " y                copy selected result cell\n" +
-      " Space / Enter    expand/collapse (objects)\n" +
-      " ← / →           collapse / expand (objects)\n" +
-      " Ctrl+E           show full error details\n" +
-      " Ctrl+Q           quit\n" +
-      "\n" +
-      " ?                close this help"
+  let bindings : Array[(String, String)] = match state.screen {
+    @app.Connect => [
+      ("Tab / Shift-Tab", "next / prev field"),
+      ("↑ / ↓", "change DB type (when on DB row)"),
+      ("Enter", "connect / load profile"),
+      ("Ctrl+S", "save profile to keyring"),
+      ("d", "delete selected profile"),
+      ("q / Ctrl+Q", "quit"),
+      ("", ""),
+      ("?", "close this help"),
+    ]
+    @app.Main => [
+      ("Tab", "switch panel"),
+      ("Ctrl+Enter", "run statement at cursor"),
+      ("F5", "run all statements"),
+      ("Ctrl+C", "cancel running query"),
+      ("Ctrl+S", "export results as CSV"),
+      ("Ctrl+D", "disconnect (return to Connect)"),
+      ("Ctrl+L", "refresh schema browser"),
+      ("Ctrl+B", "BEGIN transaction"),
+      ("Ctrl+M", "COMMIT transaction"),
+      ("Ctrl+R", "ROLLBACK transaction"),
+      ("↑ / ↓", "navigate; editor recalls history at top/bottom"),
+      ("y", "copy selected result cell"),
+      ("Space / Enter", "expand/collapse (objects)"),
+      ("← / →", "collapse / expand (objects)"),
+      ("Ctrl+E", "show full error details"),
+      ("Ctrl+Q", "quit"),
+      ("", ""),
+      ("?", "close this help"),
+    ]
   }
   let block = @widget.Block::new()
     .title(" Key Bindings ")
@@ -131,8 +133,33 @@ pub fn render_help_overlay(
     .title_style(
       @style.Style::default().fg(@style.Yellow).add_modifier(@style.bold),
     )
-  let para = @widget.Paragraph::new(content)
-    .style(@style.Style::default().fg(@style.White))
-    .block(block)
-  frame.render_widget(para, overlay_area)
+  frame.render_widget(block, overlay_area)
+  let inner = block.inner(overlay_area)
+  // Split into one row per binding, then each row into key/description columns.
+  // This prevents description wrap from misaligning subsequent rows.
+  let row_constraints = Array::make(bindings.length(), @layout.Length(1))
+  let rows = @layout.Layout::new(@layout.Vertical, row_constraints).split(inner)
+  let text_style = @style.Style::default().fg(@style.White)
+  // Longest key: "Tab / Shift-Tab" (15 cols) + 1 leading space + 2 trailing = 18
+  for i = 0; i < bindings.length(); i = i + 1 {
+    let (key, desc) = bindings[i]
+    let cols = @layout.Layout::new(
+      @layout.Horizontal,
+      [@layout.Length(18), @layout.Min(0)],
+    ).split(rows[i])
+    let desc_width = cols[1].width
+    let desc_text = if @buffer.str_display_width(desc) <= desc_width {
+      desc
+    } else {
+      @buffer.truncate_to_width(desc, desc_width - 3) + "..."
+    }
+    frame.render_widget(
+      @widget.Paragraph::new(" " + key).style(text_style),
+      cols[0],
+    )
+    frame.render_widget(
+      @widget.Paragraph::new(desc_text).style(text_style),
+      cols[1],
+    )
+  }
 }

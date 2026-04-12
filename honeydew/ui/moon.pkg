@@ -1,6 +1,7 @@
 import {
   "tiibun/honeydew/app",
   "tiibun/honeytui",
+  "tiibun/honeytui/buffer",
   "tiibun/honeytui/layout",
   "tiibun/honeytui/style",
   "tiibun/honeytui/widget",
