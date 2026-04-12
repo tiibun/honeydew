@@ -45,7 +45,8 @@ pub fn MysqlConn::async_start(self : MysqlConn, sql : String) -> Bool {
 }
 
 ///|
-pub fn mysql_async_poll() -> Int {
+pub fn MysqlConn::async_poll(self : MysqlConn) -> Int {
+  let _ = self
   hd_mysql_async_poll()
 }
 
@@ -207,6 +208,51 @@ pub fn MysqlConn::columns(
       )
     Err(e) => Err(e)
   }
+}
+
+///|
+pub impl @db.DbConn for MysqlConn with async_start(self, sql) {
+  self.async_start(sql)
+}
+
+///|
+pub impl @db.DbConn for MysqlConn with async_poll(self) {
+  self.async_poll()
+}
+
+///|
+pub impl @db.DbConn for MysqlConn with async_result(self, is_write) {
+  self.async_result(is_write)
+}
+
+///|
+pub impl @db.DbConn for MysqlConn with query(self, sql) {
+  self.query(sql)
+}
+
+///|
+pub impl @db.DbConn for MysqlConn with tables(self) {
+  self.tables()
+}
+
+///|
+pub impl @db.DbConn for MysqlConn with views(self) {
+  self.views()
+}
+
+///|
+pub impl @db.DbConn for MysqlConn with columns(self, table) {
+  self.columns(table)
+}
+
+///|
+pub impl @db.DbConn for MysqlConn with close(self) {
+  self.close()
+}
+
+///|
+pub impl @db.DbConn for MysqlConn with cancel(self) {
+  self.async_cancel()
 }
 
 ///|

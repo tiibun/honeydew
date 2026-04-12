@@ -12,10 +12,10 @@ test "mysql async_start and poll completes for simple query" {
   }
   assert_true(conn.async_start("SELECT 1 AS one"))
   let mut attempts = 0
-  while @db_mysql.mysql_async_poll() == 1 && attempts < 100000 {
+  while conn.async_poll() == 1 && attempts < 100000 {
     attempts = attempts + 1
   }
-  let status = @db_mysql.mysql_async_poll()
+  let status = conn.async_poll()
   if status == 3 {
     let result = conn.async_result(false)
     conn.close()

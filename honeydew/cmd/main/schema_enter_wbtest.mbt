@@ -14,8 +14,8 @@ async test "Enter on table node fills editor with SELECT and focuses editor" {
       ..@app.AppState::new(group),
       screen: @app.Main,
       focus: @app.Schema,
-      conn: Some(@app.DbHandle::Sqlite(conn)),
-      schema_tree: @app.build_schema_tree(@app.DbHandle::Sqlite(conn), "main"),
+      conn: Some(conn),
+      schema_tree: @app.build_schema_tree(conn, "main"),
     }
     // Navigate to the table node: root is selected initially; Down moves to
     // "Tables" group; Down again moves to "users"
@@ -41,8 +41,8 @@ async test "Enter on group node (Tables) toggles expand without filling editor" 
       ..@app.AppState::new(group),
       screen: @app.Main,
       focus: @app.Schema,
-      conn: Some(@app.DbHandle::Sqlite(conn)),
-      schema_tree: @app.build_schema_tree(@app.DbHandle::Sqlite(conn), "main"),
+      conn: Some(conn),
+      schema_tree: @app.build_schema_tree(conn, "main"),
     }
     // Navigate Down once: selects the "Tables" group node (depth 1)
     let s1 = { ..state, schema_tree: state.schema_tree.handle_key(Down) }

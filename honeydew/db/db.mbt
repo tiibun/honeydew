@@ -1,4 +1,18 @@
 ///|
+/// Common interface implemented by all database backends.
+pub(open) trait DbConn {
+  async_start(Self, String) -> Bool
+  async_poll(Self) -> Int
+  async_result(Self, Bool) -> Result[QueryResult, String]
+  async query(Self, String) -> Result[QueryResult, String]
+  async tables(Self) -> Result[Array[String], String]
+  async views(Self) -> Result[Array[String], String]
+  async columns(Self, String) -> Result[Array[ColumnInfo], String]
+  close(Self) -> Unit
+  cancel(Self) -> Unit
+}
+
+///|
 /// Information about a single column returned by schema introspection.
 pub(all) struct ColumnInfo {
   name : String

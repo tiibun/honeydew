@@ -3,6 +3,7 @@ package "tiibun/honeydew/db/postgres"
 
 import {
   "moonbit-community/postgres/client",
+  "moonbitlang/async",
   "tiibun/honeydew/db",
 }
 
@@ -13,12 +14,22 @@ import {
 // Types and methods
 pub struct PgConn {
   client : @client.Client
+  cancel_token : @client.CancelToken
+  group : @async.TaskGroup[Unit]
+  mut running_task : @async.Task[Result[@db.QueryResult, String]]?
+  mut last_result : Result[@db.QueryResult, String]?
 }
+pub fn PgConn::async_poll(Self) -> Int
+pub fn PgConn::async_result(Self, Bool) -> Result[@db.QueryResult, String]
+pub fn PgConn::async_start(Self, String) -> Bool
 pub fn PgConn::close(Self) -> Unit
 pub async fn PgConn::columns(Self, String) -> Result[Array[@db.ColumnInfo], String]
-pub async fn PgConn::connect(String, Int, String, String, String) -> (Self, @client.Connection)
+pub async fn PgConn::connect(String, Int, String, String, String, @async.TaskGroup[Unit]) -> (Self, @client.Connection)
+pub fn PgConn::interrupt(Self) -> Unit
 pub async fn PgConn::query(Self, String) -> Result[@db.QueryResult, String]
 pub async fn PgConn::tables(Self) -> Result[Array[String], String]
+pub async fn PgConn::views(Self) -> Result[Array[String], String]
+pub impl @db.DbConn for PgConn
 
 // Type aliases
 

@@ -6,15 +6,12 @@ import {
   "moonbitlang/core/bench",
   "tiibun/honeydew/config",
   "tiibun/honeydew/db",
-  "tiibun/honeydew/db/mysql",
-  "tiibun/honeydew/db/postgres",
-  "tiibun/honeydew/db/sqlite",
   "tiibun/honeytui/terminal",
   "tiibun/honeytui/widget",
 }
 
 // Values
-pub async fn build_schema_tree(DbHandle, String) -> @widget.Tree
+pub async fn build_schema_tree(&@db.DbConn, String) -> @widget.Tree
 
 pub fn connect_status(ConnPanel) -> String
 
@@ -29,7 +26,7 @@ pub fn str_to_int(String, Int) -> Int
 // Types and methods
 pub(all) struct AppState {
   screen : Screen
-  conn : DbHandle?
+  conn : &@db.DbConn?
   conn_form : ConnForm
   conn_panel : ConnPanel
   profiles : Array[@config.ConnProfile]
@@ -48,13 +45,16 @@ pub(all) struct AppState {
   in_transaction : Bool
   running_query : RunningQuery?
   cancel_requested : Bool
+  conn_lost : Bool
   group : @async.TaskGroup[Unit]
 }
+pub async fn AppState::attempt_reconnect(Self) -> Self
 pub async fn AppState::begin_transaction(Self) -> Self
 pub fn AppState::clear_query_history_nav(Self) -> Self
 pub async fn AppState::commit_transaction(Self) -> Self
 pub fn AppState::copy_selected_result_cell(Self) -> Self
 pub fn AppState::delete_selected_profile(Self) -> Self
+pub fn AppState::disconnect(Self) -> Self
 pub async fn AppState::do_connect(Self) -> Self
 pub fn AppState::export_results_csv(Self) -> Self
 pub fn AppState::handle_schema_click(Self, Int, Int, Int, Int) -> Self
@@ -67,6 +67,7 @@ pub fn AppState::profile_names(Self) -> Array[String]
 pub fn AppState::recall_next_query(Self) -> Self
 pub fn AppState::recall_prev_query(Self) -> Self
 pub fn AppState::record_query_history(Self, String) -> Self
+pub async fn AppState::refresh_schema(Self) -> Self
 pub async fn AppState::rollback_transaction(Self) -> Self
 pub fn AppState::save_current_profile(Self) -> Self
 pub fn AppState::selected_schema_table(Self) -> String?
@@ -92,20 +93,6 @@ pub(all) enum ConnPanel {
   ProfileList
   Form
 } derive(Eq)
-
-pub(all) enum DbHandle {
-  Sqlite(@sqlite.SqliteConn)
-  Postgres(@postgres.PgConn)
-  Mysql(@mysql.MysqlConn)
-}
-pub fn DbHandle::async_poll(Self) -> Int
-pub fn DbHandle::async_result(Self, Bool) -> Result[@db.QueryResult, String]
-pub fn DbHandle::async_start(Self, String) -> Bool
-pub fn DbHandle::cancel(Self) -> Unit
-pub fn DbHandle::close(Self) -> Unit
-pub async fn DbHandle::columns(Self, String) -> Result[Array[@db.ColumnInfo], String]
-pub async fn DbHandle::query(Self, String) -> Result[@db.QueryResult, String]
-pub async fn DbHandle::tables(Self) -> Result[Array[String], String]
 
 pub(all) enum DbKind {
   Sqlite

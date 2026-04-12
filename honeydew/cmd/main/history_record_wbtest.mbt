@@ -1,6 +1,6 @@
 ///|
 async test "run_query_at_cursor records executed statement" {
-  @async.with_task_group(async fn(group) {
+  @async.with_task_group(group => {
     let state = {
       ..@app.AppState::new(group),
       screen: @app.Main,

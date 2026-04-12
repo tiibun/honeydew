@@ -62,7 +62,7 @@ async test "F5 starts run_all when editor has multiple statements" {
       ..@app.AppState::new(group),
       screen: @app.Main,
       focus: @app.Editor,
-      conn: Some(@app.DbHandle::Sqlite(conn)),
+      conn: Some(conn),
       sql_input: @widget.TextArea::new().with_value("SELECT 1; SELECT 2"),
     }
     let after = handle_key(state, F5)
@@ -83,7 +83,7 @@ async test "F5 on empty editor does nothing" {
       ..@app.AppState::new(group),
       screen: @app.Main,
       focus: @app.Editor,
-      conn: Some(@app.DbHandle::Sqlite(conn)),
+      conn: Some(conn),
     }
     let after = handle_key(state, F5)
     assert_eq(after.is_query_running(), false)

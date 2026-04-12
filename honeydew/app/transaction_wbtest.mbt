@@ -77,11 +77,7 @@ async test "begin then commit toggles in_transaction with real SQLite" {
       Ok(c) => c
       Err(e) => fail("open failed: \{e}")
     }
-    let state = {
-      ..AppState::new(group),
-      conn: Some(Sqlite(conn)),
-      screen: Main,
-    }
+    let state = { ..AppState::new(group), conn: Some(conn), screen: Main }
     let after_begin = state.begin_transaction()
     assert_eq(after_begin.in_transaction, true)
     assert_true(after_begin.status.contains("BEGIN"))
@@ -103,11 +99,7 @@ async test "begin then rollback toggles in_transaction with real SQLite" {
       Ok(c) => c
       Err(e) => fail("open failed: \{e}")
     }
-    let state = {
-      ..AppState::new(group),
-      conn: Some(Sqlite(conn)),
-      screen: Main,
-    }
+    let state = { ..AppState::new(group), conn: Some(conn), screen: Main }
     let after_begin = state.begin_transaction()
     assert_eq(after_begin.in_transaction, true)
     let after_rollback = after_begin.rollback_transaction()
@@ -128,11 +120,7 @@ async test "menu_bar_left_label returns correct label for transaction state" {
       Ok(c) => c
       Err(e) => fail("open failed: \{e}")
     }
-    let state = {
-      ..AppState::new(group),
-      conn: Some(Sqlite(conn)),
-      screen: Main,
-    }
+    let state = { ..AppState::new(group), conn: Some(conn), screen: Main }
     assert_true(state.menu_bar_left_label().contains("honeydew"))
     assert_true(!state.menu_bar_left_label().contains("[TXN]"))
     let after_begin = state.begin_transaction()
@@ -154,7 +142,7 @@ async test "menu_bar_left_label shows db kind and name when connected" {
     }
     let state = {
       ..AppState::new(group),
-      conn: Some(Sqlite(conn)),
+      conn: Some(conn),
       conn_form: {
         ..ConnForm::new(),
         database: @widget.Input::new().with_value("mydb.db"),

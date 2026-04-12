@@ -14,10 +14,10 @@ test "sqlite async_start and poll completes for simple query" {
   inspect(started, content="true")
   // Poll until done (should be nearly instant for in-memory)
   let mut attempts = 0
-  while @db_sqlite.async_poll() == 1 && attempts < 100000 {
+  while conn.async_poll() == 1 && attempts < 100000 {
     attempts = attempts + 1
   }
-  let status = @db_sqlite.async_poll()
+  let status = conn.async_poll()
   inspect(status, content="2")
   let result = match conn.async_result(false) {
     Ok(r) => r
@@ -46,11 +46,11 @@ test "sqlite async interrupt cancels a long query" {
   // Repeatedly interrupt until the worker finishes —
   // a single interrupt() may fire before sqlite3_step begins.
   let mut attempts = 0
-  while @db_sqlite.async_poll() == 1 && attempts < 2000000 {
+  while conn.async_poll() == 1 && attempts < 2000000 {
     conn.interrupt()
     attempts = attempts + 1
   }
-  let status = @db_sqlite.async_poll()
+  let status = conn.async_poll()
   inspect(status, content="3") // ASYNC_ERROR (interrupted)
   let result = conn.async_result(false)
   assert_true(result is Err(_))
@@ -71,10 +71,10 @@ test "sqlite async write query reports affected rows" {
   let _ = conn.query("INSERT INTO t VALUES(1)")
   assert_true(conn.async_start("UPDATE t SET x = 2"))
   let mut attempts = 0
-  while @db_sqlite.async_poll() == 1 && attempts < 100000 {
+  while conn.async_poll() == 1 && attempts < 100000 {
     attempts = attempts + 1
   }
-  assert_true(@db_sqlite.async_poll() == 2)
+  assert_true(conn.async_poll() == 2)
   let result = match conn.async_result(true) {
     Ok(r) => r
     Err(e) => fail("async_result failed: \{e}")

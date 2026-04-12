@@ -3,6 +3,9 @@
 pub struct PgConn {
   client : @pg.Client
   cancel_token : @pg.CancelToken
+  group : @async.TaskGroup[Unit]
+  mut running_task : @async.Task[Result[@db.QueryResult, String]]?
+  mut last_result : Result[@db.QueryResult, String]?
 }
 
 ///|
@@ -15,11 +18,21 @@ pub async fn PgConn::connect(
   database : String,
   user : String,
   password : String,
+  group : @async.TaskGroup[Unit],
 ) -> (PgConn, @pg.Connection) {
   let pwd_opt : String? = if password == "" { None } else { Some(password) }
   let cfg = @pg.Config::new(host, user~, database~, password?=pwd_opt, port~)
   let (client, connection) = @pg.connect(cfg)
-  ({ client, cancel_token: client.cancel_token() }, connection)
+  (
+    {
+      client,
+      cancel_token: client.cancel_token(),
+      group,
+      running_task: None,
+      last_result: None,
+    },
+    connection,
+  )
 }
 
 ///|
@@ -28,8 +41,58 @@ pub fn PgConn::close(self : PgConn) -> Unit {
 }
 
 ///|
-pub fn PgConn::cancel_token(self : PgConn) -> @pg.CancelToken {
-  self.cancel_token
+/// Start a non-blocking query in a background task. Always returns true.
+pub fn PgConn::async_start(self : PgConn, sql : String) -> Bool {
+  let task = self.group.spawn(async fn() {
+    self.query(sql) catch {
+      err => Err(err.to_string())
+    }
+  })
+  self.running_task = Some(task)
+  self.last_result = None
+  true
+}
+
+///|
+/// Poll the background task. Returns 0=idle, 1=running, 2=done, 3=error.
+pub fn PgConn::async_poll(self : PgConn) -> Int {
+  match self.running_task {
+    None => 0
+    Some(task) =>
+      try task.try_wait() catch {
+        e => {
+          self.last_result = Some(Err(e.to_string()))
+          self.running_task = None
+          return 3
+        }
+      } noraise {
+        None => 1
+        Some(result) => {
+          self.last_result = Some(result)
+          self.running_task = None
+          2
+        }
+      }
+  }
+}
+
+///|
+/// Collect the result after async_poll returns non-1.
+pub fn PgConn::async_result(
+  self : PgConn,
+  _is_write : Bool,
+) -> Result[@db.QueryResult, String] {
+  match self.last_result {
+    Some(r) => r
+    None => Err("no result available")
+  }
+}
+
+///|
+/// Request cancellation of the in-flight query.
+pub fn PgConn::interrupt(self : PgConn) -> Unit {
+  let token = self.cancel_token
+  self.group.spawn_bg(async fn() { token.cancel() }, allow_failure=true)
 }
 
 ///|
@@ -165,4 +228,49 @@ pub async fn PgConn::columns(
       )
     Err(e) => Err(e)
   }
+}
+
+///|
+pub impl @db.DbConn for PgConn with async_start(self, sql) {
+  self.async_start(sql)
+}
+
+///|
+pub impl @db.DbConn for PgConn with async_poll(self) {
+  self.async_poll()
+}
+
+///|
+pub impl @db.DbConn for PgConn with async_result(self, is_write) {
+  self.async_result(is_write)
+}
+
+///|
+pub impl @db.DbConn for PgConn with query(self, sql) {
+  self.query(sql)
+}
+
+///|
+pub impl @db.DbConn for PgConn with tables(self) {
+  self.tables()
+}
+
+///|
+pub impl @db.DbConn for PgConn with views(self) {
+  self.views()
+}
+
+///|
+pub impl @db.DbConn for PgConn with columns(self, table) {
+  self.columns(table)
+}
+
+///|
+pub impl @db.DbConn for PgConn with close(self) {
+  self.close()
+}
+
+///|
+pub impl @db.DbConn for PgConn with cancel(self) {
+  self.interrupt()
 }

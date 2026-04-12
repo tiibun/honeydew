@@ -6,6 +6,8 @@ pub fn fixed_bytes_to_str(FixedArray[Byte], Int) -> String
 
 pub fn is_write_statement(String) -> Bool
 
+pub let null_value : String
+
 pub fn str_to_bytes(String) -> Bytes
 
 // Errors
@@ -26,4 +28,15 @@ pub fn QueryResult::empty() -> Self
 // Type aliases
 
 // Traits
+pub(open) trait DbConn {
+  async_start(Self, String) -> Bool
+  async_poll(Self) -> Int
+  async_result(Self, Bool) -> Result[QueryResult, String]
+  async query(Self, String) -> Result[QueryResult, String]
+  async tables(Self) -> Result[Array[String], String]
+  async views(Self) -> Result[Array[String], String]
+  async columns(Self, String) -> Result[Array[ColumnInfo], String]
+  close(Self) -> Unit
+  cancel(Self) -> Unit
+}
 

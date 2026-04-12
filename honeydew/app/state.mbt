@@ -2,7 +2,7 @@
 /// Build a collapsible Tree widget for the given DB handle.
 /// Structure: root (db name) → "Tables" group → individual table entries.
 pub async fn build_schema_tree(
-  handle : DbHandle,
+  handle : &@db.DbConn,
   db_label : String,
 ) -> @widget.Tree {
   let items : Array[@widget.TreeItem] = []
@@ -206,227 +206,6 @@ fn ConnForm::route_key_to_field(
 }
 
 ///|
-/// A handle to an active database connection (enum over the three backends).
-pub(all) enum DbHandle {
-  Sqlite(@sqlite.SqliteConn)
-  Postgres(@postgres.PgConn)
-  Mysql(@mysql.MysqlConn)
-}
-
-///|
-pub async fn DbHandle::query(
-  self : DbHandle,
-  sql : String,
-) -> Result[@db.QueryResult, String] {
-  match self {
-    Sqlite(c) => c.query(sql)
-    Postgres(c) => c.query(sql)
-    Mysql(c) => c.query(sql)
-  }
-}
-
-///|
-pub async fn DbHandle::tables(self : DbHandle) -> Result[Array[String], String] {
-  match self {
-    Sqlite(c) => c.tables()
-    Postgres(c) => c.tables()
-    Mysql(c) => c.tables()
-  }
-}
-
-///|
-pub async fn DbHandle::views(self : DbHandle) -> Result[Array[String], String] {
-  match self {
-    Sqlite(c) => c.views()
-    Postgres(c) => c.views()
-    Mysql(c) => c.views()
-  }
-}
-
-///|
-pub async fn DbHandle::columns(
-  self : DbHandle,
-  table : String,
-) -> Result[Array[@db.ColumnInfo], String] {
-  match self {
-    Sqlite(c) => c.columns(table)
-    Postgres(c) => c.columns(table)
-    Mysql(c) => c.columns(table)
-  }
-}
-
-///|
-pub fn DbHandle::close(self : DbHandle) -> Unit {
-  match self {
-    Sqlite(c) => c.close()
-    Postgres(c) => c.close()
-    Mysql(c) => c.close()
-  }
-}
-
-///|
-/// Request cancellation of any in-flight query on this connection.
-pub fn DbHandle::cancel(self : DbHandle) -> Unit {
-  match self {
-    Sqlite(c) => c.interrupt()
-    Postgres(_) => () // Postgres cancel goes through cancel_token, not here
-    Mysql(c) => c.async_cancel()
-  }
-}
-
-///|
-/// Spawn a background async task that executes a single SQL statement on a
-/// Postgres connection and returns the result as a `PgQueryResult`.
-/// Returns None for non-Postgres backends.
-pub fn DbHandle::spawn_pg_task(
-  self : DbHandle,
-  group : @async.TaskGroup[Unit],
-  sql : String,
-) -> (@async.Task[PgQueryResult], async () -> Unit)? {
-  match self {
-    Postgres(pg_conn) => {
-      let cancel_token = pg_conn.cancel_token()
-      let task = group.spawn(async fn() {
-        match (pg_conn.query(sql) catch { err => Err(err.to_string()) }) {
-          Ok(result) => PgSingle(result~)
-          Err(msg) => PgFailed(msg~)
-        }
-      })
-      let cancel : async () -> Unit = async fn() { cancel_token.cancel() }
-      Some((task, cancel))
-    }
-    _ => None
-  }
-}
-
-///|
-/// Spawn a background async task that executes all statements sequentially on a
-/// Postgres connection, accumulating results into a `PgRunAll` result.
-/// Returns None for non-Postgres backends.
-pub fn DbHandle::spawn_pg_run_all_task(
-  self : DbHandle,
-  group : @async.TaskGroup[Unit],
-  stmts : Array[String],
-  in_txn_init : Bool,
-) -> (@async.Task[PgQueryResult], async () -> Unit)? {
-  match self {
-    Postgres(pg_conn) => {
-      let cancel_token = pg_conn.cancel_token()
-      let task = group.spawn(async fn() {
-        let mut last_result = @db.QueryResult::empty()
-        let mut total_rows = 0
-        let mut total_affected = 0
-        let mut has_affected = false
-        let mut stmt_count = 0
-        let mut in_txn = in_txn_init
-        let total_stmts = stmts.length()
-        for stmt in stmts {
-          match (pg_conn.query(stmt) catch { err => Err(err.to_string()) }) {
-            Ok(result) => {
-              last_result = result
-              total_rows = total_rows + result.rows.length()
-              match result.affected_rows {
-                Some(n) => {
-                  total_affected = total_affected + n
-                  has_affected = true
-                }
-                None => ()
-              }
-              stmt_count = stmt_count + 1
-              if stmt_opens_txn(stmt) {
-                in_txn = true
-              } else if stmt_closes_txn(stmt) {
-                in_txn = false
-              }
-            }
-            Err(msg) => {
-              // PostgreSQL cancellation error → return partial results so the
-              // caller can display "Cancelled after N/M statements".
-              let u = msg.to_upper()
-              if u.contains("CANCELING STATEMENT") ||
-                u.contains("QUERY_CANCELED") {
-                return PgRunAll(
-                  last_result~,
-                  total_rows~,
-                  total_affected~,
-                  has_affected~,
-                  stmt_count~,
-                  total_stmts~,
-                  in_txn~,
-                )
-              }
-              return PgFailed(msg~)
-            }
-          }
-        }
-        PgRunAll(
-          last_result~,
-          total_rows~,
-          total_affected~,
-          has_affected~,
-          stmt_count~,
-          total_stmts~,
-          in_txn~,
-        )
-      })
-      let cancel : async () -> Unit = async fn() { cancel_token.cancel() }
-      Some((task, cancel))
-    }
-    _ => None
-  }
-}
-
-///|
-/// Start a non-blocking query execution. Returns true if the background
-/// work was successfully initiated.
-pub fn DbHandle::async_start(self : DbHandle, sql : String) -> Bool {
-  match self {
-    Sqlite(c) => c.async_start(sql)
-    Postgres(_) => false
-    Mysql(c) => c.async_start(sql)
-  }
-}
-
-///|
-/// Poll the async worker. Returns 0=idle, 1=running, 2=done, 3=error.
-pub fn DbHandle::async_poll(self : DbHandle) -> Int {
-  match self {
-    Sqlite(_) => @sqlite.async_poll()
-    Postgres(_) => 0
-    Mysql(_) => @mysql.mysql_async_poll()
-  }
-}
-
-///|
-/// Collect async results after the worker is done.
-pub fn DbHandle::async_result(
-  self : DbHandle,
-  is_write : Bool,
-) -> Result[@db.QueryResult, String] {
-  match self {
-    Sqlite(c) => c.async_result(is_write)
-    Postgres(_) => Err("async not supported for this backend")
-    Mysql(c) => c.async_result(is_write)
-  }
-}
-
-///|
-pub(all) enum PgQueryResult {
-  PgSingle(result~ : @db.QueryResult)
-  PgRunAll(
-    last_result~ : @db.QueryResult,
-    total_rows~ : Int,
-    total_affected~ : Int,
-    has_affected~ : Bool,
-    stmt_count~ : Int,
-    total_stmts~ : Int,
-    in_txn~ : Bool
-  )
-  PgCancelled
-  PgFailed(msg~ : String)
-}
-
-///|
 /// Returns true when a query is currently being executed.
 pub fn AppState::is_query_running(self : AppState) -> Bool {
   self.running_query is Some(_)
@@ -437,11 +216,6 @@ pub fn AppState::is_query_running(self : AppState) -> Bool {
 pub(all) enum RunningQuery {
   /// A single statement execution (Ctrl+Enter).
   Single(sql~ : String, started~ : @bench.Timestamp)
-  PgTask(
-    task~ : @async.Task[PgQueryResult],
-    cancel~ : async () -> Unit,
-    started~ : @bench.Timestamp
-  )
   /// Sequential run-all execution (F5).
   RunAll(
     stmts~ : Array[String],
@@ -460,7 +234,7 @@ pub(all) enum RunningQuery {
 /// Top-level application state.
 pub(all) struct AppState {
   screen : Screen
-  conn : DbHandle?
+  conn : &@db.DbConn?
   conn_form : ConnForm
   conn_panel : ConnPanel
   profiles : Array[@config.ConnProfile]
@@ -665,11 +439,11 @@ pub fn AppState::delete_selected_profile(self : AppState) -> AppState {
 /// Attempt to connect using the current ConnForm values.
 pub async fn AppState::do_connect(self : AppState) -> AppState {
   let form = self.conn_form
-  let result : Result[DbHandle, String] = match form.kind_idx {
+  let result : Result[&@db.DbConn, String] = match form.kind_idx {
     0 => {
       let path = form.database.value()
       match @sqlite.SqliteConn::open(path) {
-        Ok(c) => Ok(Sqlite(c))
+        Ok(c) => Ok(c)
         Err(e) => Err(e)
       }
     }
@@ -681,11 +455,12 @@ pub async fn AppState::do_connect(self : AppState) -> AppState {
         form.database.value(),
         form.username.value(),
         form.password.value(),
+        self.group,
       ) catch {
         err => return { ..self, conn_form: { ..form, error: err.to_string() } }
       }
       self.group.spawn_bg(async fn() { connection.run() }, allow_failure=true)
-      Ok(Postgres(conn))
+      Ok(conn)
     }
     _ => {
       let port = str_to_int(form.port.value(), 3306)
@@ -697,7 +472,7 @@ pub async fn AppState::do_connect(self : AppState) -> AppState {
           form.username.value(),
           form.password.value(),
         ) {
-        Ok(c) => Ok(Mysql(c))
+        Ok(c) => Ok(c)
         Err(e) => Err(e)
       }
     }

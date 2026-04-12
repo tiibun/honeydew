@@ -1,6 +1,6 @@
 ///|
 async test "handle_key CtrlB on Main screen calls begin_transaction (no conn → error)" {
-  @async.with_task_group(async fn(group) {
+  @async.with_task_group(group => {
     let state = {
       ..@app.AppState::new(group),
       screen: @app.Main,
@@ -15,7 +15,7 @@ async test "handle_key CtrlB on Main screen calls begin_transaction (no conn →
 ///|
 // CtrlR guard fires before connection check: not in transaction → warning, not error.
 async test "handle_key CtrlR on Main screen with no txn gives guard warning" {
-  @async.with_task_group(async fn(group) {
+  @async.with_task_group(group => {
     let state = {
       ..@app.AppState::new(group),
       screen: @app.Main,
@@ -30,7 +30,7 @@ async test "handle_key CtrlR on Main screen with no txn gives guard warning" {
 ///|
 // CtrlM guard fires before connection check: not in transaction → warning, not error.
 async test "handle_key CtrlM on Main screen with no txn gives guard warning" {
-  @async.with_task_group(async fn(group) {
+  @async.with_task_group(group => {
     let state = {
       ..@app.AppState::new(group),
       screen: @app.Main,
@@ -45,7 +45,7 @@ async test "handle_key CtrlM on Main screen with no txn gives guard warning" {
 ///|
 // CtrlB guard fires when already in a transaction.
 async test "handle_key CtrlB when already in transaction gives guard warning" {
-  @async.with_task_group(async fn(group) {
+  @async.with_task_group(group => {
     let state = {
       ..@app.AppState::new(group),
       screen: @app.Main,
@@ -60,7 +60,7 @@ async test "handle_key CtrlB when already in transaction gives guard warning" {
 
 ///|
 async test "handle_key CtrlB on Connect screen does nothing" {
-  @async.with_task_group(async fn(group) {
+  @async.with_task_group(group => {
     let state = { ..@app.AppState::new(group), screen: @app.Connect }
     let s = handle_key(state, CtrlB)
     assert_eq(s.in_transaction, false)
@@ -71,7 +71,7 @@ async test "handle_key CtrlB on Connect screen does nothing" {
 ///|
 /// Manually typing BEGIN via run_query_at_cursor syncs in_transaction to true.
 async test "run_query_at_cursor with BEGIN syncs in_transaction" {
-  @async.with_task_group(async fn(group) {
+  @async.with_task_group(group => {
     let conn = match @sqlite.SqliteConn::open(":memory:") {
       Ok(c) => c
       Err(e) => fail("open failed: \{e}")
@@ -80,7 +80,7 @@ async test "run_query_at_cursor with BEGIN syncs in_transaction" {
       ..@app.AppState::new(group),
       screen: @app.Main,
       focus: @app.Editor,
-      conn: Some(@app.DbHandle::Sqlite(conn)),
+      conn: Some(conn),
       sql_input: @widget.TextArea::new().with_value("BEGIN"),
     }
     let mut after = run_query_at_cursor(state)
@@ -100,7 +100,7 @@ async test "run_query_at_cursor with BEGIN syncs in_transaction" {
 ///|
 /// Manually typing COMMIT via run_query_at_cursor syncs in_transaction to false.
 async test "run_query_at_cursor with COMMIT after BEGIN syncs in_transaction" {
-  @async.with_task_group(async fn(group) {
+  @async.with_task_group(group => {
     let conn = match @sqlite.SqliteConn::open(":memory:") {
       Ok(c) => c
       Err(e) => fail("open failed: \{e}")
@@ -109,7 +109,7 @@ async test "run_query_at_cursor with COMMIT after BEGIN syncs in_transaction" {
       ..@app.AppState::new(group),
       screen: @app.Main,
       focus: @app.Editor,
-      conn: Some(@app.DbHandle::Sqlite(conn)),
+      conn: Some(conn),
       sql_input: @widget.TextArea::new().with_value("BEGIN"),
     }
     let mut after_begin = run_query_at_cursor(state)

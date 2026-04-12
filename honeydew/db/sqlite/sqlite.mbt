@@ -38,7 +38,8 @@ pub fn SqliteConn::async_start(self : SqliteConn, sql : String) -> Bool {
 
 ///|
 /// Poll async worker status: 0=idle, 1=running, 2=done, 3=error.
-pub fn async_poll() -> Int {
+pub fn SqliteConn::async_poll(self : SqliteConn) -> Int {
+  let _ = self
   hd_sqlite_async_poll()
 }
 
@@ -214,6 +215,51 @@ fn read_row(
     )
   }
   row
+}
+
+///|
+pub impl @db.DbConn for SqliteConn with async_start(self, sql) {
+  self.async_start(sql)
+}
+
+///|
+pub impl @db.DbConn for SqliteConn with async_poll(self) {
+  self.async_poll()
+}
+
+///|
+pub impl @db.DbConn for SqliteConn with async_result(self, is_write) {
+  self.async_result(is_write)
+}
+
+///|
+pub impl @db.DbConn for SqliteConn with query(self, sql) {
+  self.query(sql)
+}
+
+///|
+pub impl @db.DbConn for SqliteConn with tables(self) {
+  self.tables()
+}
+
+///|
+pub impl @db.DbConn for SqliteConn with views(self) {
+  self.views()
+}
+
+///|
+pub impl @db.DbConn for SqliteConn with columns(self, table) {
+  self.columns(table)
+}
+
+///|
+pub impl @db.DbConn for SqliteConn with close(self) {
+  self.close()
+}
+
+///|
+pub impl @db.DbConn for SqliteConn with cancel(self) {
+  self.interrupt()
 }
 
 ///|

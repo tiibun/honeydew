@@ -12,7 +12,7 @@ async test "CtrlL on Main screen rebuilds schema tree" {
       ..@app.AppState::new(group),
       screen: @app.Main,
       focus: @app.Schema,
-      conn: Some(@app.DbHandle::Sqlite(conn)),
+      conn: Some(conn),
     }
     let after = handle_key(state, CtrlL)
     assert_true(after.screen is @app.Main)

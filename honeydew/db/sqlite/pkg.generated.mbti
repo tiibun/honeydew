@@ -6,7 +6,6 @@ import {
 }
 
 // Values
-pub fn async_poll() -> Int
 
 // Errors
 
@@ -14,6 +13,7 @@ pub fn async_poll() -> Int
 pub struct SqliteConn {
   id : Int
 }
+pub fn SqliteConn::async_poll(Self) -> Int
 pub fn SqliteConn::async_result(Self, Bool) -> Result[@db.QueryResult, String]
 pub fn SqliteConn::async_start(Self, String) -> Bool
 pub fn SqliteConn::close(Self) -> Unit
@@ -22,6 +22,8 @@ pub fn SqliteConn::interrupt(Self) -> Unit
 pub fn SqliteConn::open(String) -> Result[Self, String]
 pub fn SqliteConn::query(Self, String) -> Result[@db.QueryResult, String]
 pub fn SqliteConn::tables(Self) -> Result[Array[String], String]
+pub fn SqliteConn::views(Self) -> Result[Array[String], String]
+pub impl @db.DbConn for SqliteConn
 
 // Type aliases
 

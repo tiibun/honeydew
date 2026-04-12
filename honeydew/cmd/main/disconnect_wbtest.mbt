@@ -12,7 +12,7 @@ async test "CtrlD on Main screen returns to Connect and closes connection" {
       ..@app.AppState::new(group),
       screen: @app.Main,
       focus: @app.Editor,
-      conn: Some(@app.DbHandle::Sqlite(conn)),
+      conn: Some(conn),
       in_transaction: true,
     }
     let after = handle_key(state, CtrlD)
@@ -43,7 +43,7 @@ async test "CtrlD while query is running is ignored" {
       ..@app.AppState::new(group),
       screen: @app.Main,
       focus: @app.Editor,
-      conn: Some(@app.DbHandle::Sqlite(conn)),
+      conn: Some(conn),
       running_query: Some(
         @app.RunningQuery::Single(
           sql="SELECT 1",
