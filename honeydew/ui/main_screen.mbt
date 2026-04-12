@@ -82,13 +82,28 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   let tbl = state.results.block(results_block)
   frame.render_widget(tbl, results_area)
   // ---- Status bar ----
-  let status_style = if state.status.contains("Error") {
+  let is_error = state.status.contains("Error")
+  let status_style = if is_error {
     @style.Style::default().fg(@style.Red).bg(@style.Black)
   } else {
     @style.Style::default().fg(@style.White).bg(@style.Black)
   }
+  let status_text = if is_error {
+    let hint = "  Ctrl+E=details"
+    let prefix = " \{state.status}"
+    let avail = status_area.width - hint.length()
+    let left = if prefix.length() > avail {
+      prefix[0:avail].to_string()
+    } else {
+      let pad = avail - prefix.length()
+      prefix + String::make(pad, ' ')
+    }
+    left + hint
+  } else {
+    " \{state.status}"
+  }
   frame.render_widget(
-    @widget.Paragraph::new(" \{state.status}").style(status_style),
+    @widget.Paragraph::new(status_text).style(status_style),
     status_area,
   )
   if state.show_help {

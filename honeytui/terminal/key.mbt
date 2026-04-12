@@ -19,6 +19,7 @@ pub(all) enum Key {
   CtrlB
   CtrlC
   CtrlD
+  CtrlE
   CtrlL
   CtrlM
   CtrlQ
@@ -54,6 +55,8 @@ pub fn Key::from_bytes(bytes : Array[Int]) -> Key {
         CtrlC
       } else if b == 4 {
         CtrlD
+      } else if b == 5 {
+        CtrlE
       } else if b == 12 {
         CtrlL
       } else if b == 17 {
@@ -76,6 +79,11 @@ pub fn Key::from_bytes(bytes : Array[Int]) -> Key {
     [27, 91, 49, 51, 59, 53, 117] => CtrlEnter // ESC [13;5u
     [27, 91, 53, 59, 49, 51, 126] => CtrlEnter // ESC [5;13~
     [27, 91, 50, 55, 59, 53, 59, 49, 51, 126] => CtrlEnter // ESC [27;5;13~
+    // Ctrl+E — escape sequences for terminals that encode it as a sequence:
+    //   ESC [101;5u      kitty keyboard protocol
+    //   ESC [27;5;101~   XTerm modifyOtherKeys=2
+    [27, 91, 49, 48, 49, 59, 53, 117] => CtrlE // ESC [101;5u
+    [27, 91, 50, 55, 59, 53, 59, 49, 48, 49, 126] => CtrlE // ESC [27;5;101~
     // Ctrl+M (COMMIT) — byte 13 collides with Enter, so we decode only escape sequences:
     //   ESC [109;5u      kitty keyboard protocol
     //   ESC [27;5;109~   XTerm modifyOtherKeys=2

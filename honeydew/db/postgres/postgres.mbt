@@ -45,7 +45,7 @@ pub fn PgConn::close(self : PgConn) -> Unit {
 pub fn PgConn::async_start(self : PgConn, sql : String) -> Bool {
   let task = self.group.spawn(async fn() {
     self.query(sql) catch {
-      err => Err(err.to_string())
+      err => Err(pg_error_message(err))
     }
   })
   self.running_task = Some(task)
@@ -96,13 +96,31 @@ pub fn PgConn::interrupt(self : PgConn) -> Unit {
 }
 
 ///|
+fn pg_error_message(err : Error) -> String {
+  match err {
+    @pg.ClientError::Database(db_err) => db_err.message
+    @pg.ClientError::Authentication(msg) => msg
+    @pg.ClientError::Closed(msg) => msg
+    @pg.ClientError::Protocol(msg) => msg
+    @pg.ClientError::Ssl(msg) => msg
+    @pg.ClientError::Encode(msg) => msg
+    @pg.ClientError::Decode(msg) => msg
+    @pg.ClientError::WrongType(msg) => msg
+    @pg.ClientError::ColumnNotFound(msg) => msg
+    @pg.ClientError::RowCount(msg) => msg
+    @pg.ClientError::UnexpectedMessage(msg) => msg
+    _ => err.to_string()
+  }
+}
+
+///|
 /// Execute a SQL statement and return all result rows as strings.
 pub async fn PgConn::query(
   self : PgConn,
   sql : String,
 ) -> Result[@db.QueryResult, String] {
   let stream = self.client.simple_query(sql) catch {
-    err => return Err(err.to_string())
+    err => return Err(pg_error_message(err))
   }
   let mut columns : Array[String] = []
   let rows : Array[Array[String]] = []
@@ -134,7 +152,7 @@ pub async fn PgConn::query(
         }
     }
   } catch {
-    err => return Err(err.to_string())
+    err => return Err(pg_error_message(err))
   }
   Ok({ columns, rows, affected_rows })
 }

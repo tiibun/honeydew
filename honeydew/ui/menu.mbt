@@ -119,7 +119,7 @@ pub fn render_help_overlay(
       " y                copy selected result cell\n" +
       " Space / Enter    expand/collapse (objects)\n" +
       " ← / →           collapse / expand (objects)\n" +
-      " e                show full error details\n" +
+      " Ctrl+E           show full error details\n" +
       " Ctrl+Q           quit\n" +
       "\n" +
       " ?                close this help"

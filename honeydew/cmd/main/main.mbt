@@ -58,6 +58,9 @@ async fn handle_key(
   if state.show_error {
     return { ..state, show_error: false }
   }
+  if key == CtrlE && state.screen == @app.Main && state.status.contains("Error") {
+    return { ..state, show_error: true }
+  }
   match key {
     CtrlC =>
       if state.is_query_running() {
@@ -88,14 +91,6 @@ async fn handle_key_idle(
 ) -> @app.AppState {
   match key {
     Char('?') => { ..state, show_help: true }
-    Char('e') =>
-      if state.screen == @app.Main &&
-        state.focus != @app.Editor &&
-        state.status.contains("Error") {
-        { ..state, show_error: true }
-      } else {
-        dispatch(state, key)
-      }
     Char('y') =>
       if state.screen == @app.Main && state.focus == @app.Results {
         state.copy_selected_result_cell()
