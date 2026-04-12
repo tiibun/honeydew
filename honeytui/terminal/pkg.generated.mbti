@@ -54,6 +54,7 @@ pub(all) enum Key {
   CtrlB
   CtrlC
   CtrlD
+  CtrlE
   CtrlL
   CtrlM
   CtrlQ

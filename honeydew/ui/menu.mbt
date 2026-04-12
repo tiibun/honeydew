@@ -95,36 +95,38 @@ pub fn render_help_overlay(
     @layout.AtMost(20),
   ).resolve(area)
   let bindings : Array[(String, String)] = match state.screen {
-    @app.Connect => [
-      ("Tab / Shift-Tab", "next / prev field"),
-      ("↑ / ↓", "change DB type (when on DB row)"),
-      ("Enter", "connect / load profile"),
-      ("Ctrl+S", "save profile to keyring"),
-      ("d", "delete selected profile"),
-      ("q / Ctrl+Q", "quit"),
-      ("", ""),
-      ("?", "close this help"),
-    ]
-    @app.Main => [
-      ("Tab", "switch panel"),
-      ("Ctrl+Enter", "run statement at cursor"),
-      ("F5", "run all statements"),
-      ("Ctrl+C", "cancel running query"),
-      ("Ctrl+S", "export results as CSV"),
-      ("Ctrl+D", "disconnect (return to Connect)"),
-      ("Ctrl+L", "refresh schema browser"),
-      ("Ctrl+B", "BEGIN transaction"),
-      ("Ctrl+M", "COMMIT transaction"),
-      ("Ctrl+R", "ROLLBACK transaction"),
-      ("↑ / ↓", "navigate; editor recalls history at top/bottom"),
-      ("y", "copy selected result cell"),
-      ("Space / Enter", "expand/collapse (objects)"),
-      ("← / →", "collapse / expand (objects)"),
-      ("Ctrl+E", "show full error details"),
-      ("Ctrl+Q", "quit"),
-      ("", ""),
-      ("?", "close this help"),
-    ]
+    @app.Connect =>
+      [
+        ("Tab / Shift-Tab", "next / prev field"),
+        ("↑ / ↓", "change DB type (when on DB row)"),
+        ("Enter", "connect / load profile"),
+        ("Ctrl+S", "save profile to keyring"),
+        ("d", "delete selected profile"),
+        ("q / Ctrl+Q", "quit"),
+        ("", ""),
+        ("?", "close this help"),
+      ]
+    @app.Main =>
+      [
+        ("Tab", "switch panel"),
+        ("Ctrl+Enter", "run statement at cursor"),
+        ("F5", "run all statements"),
+        ("Ctrl+C", "cancel running query"),
+        ("Ctrl+S", "export results as CSV"),
+        ("Ctrl+D", "disconnect (return to Connect)"),
+        ("Ctrl+L", "refresh schema browser"),
+        ("Ctrl+B", "BEGIN transaction"),
+        ("Ctrl+M", "COMMIT transaction"),
+        ("Ctrl+R", "ROLLBACK transaction"),
+        ("↑ / ↓", "navigate; editor recalls history at top/bottom"),
+        ("y", "copy selected result cell"),
+        ("Space / Enter", "expand/collapse (objects)"),
+        ("← / →", "collapse / expand (objects)"),
+        ("Ctrl+E", "show full error details"),
+        ("Ctrl+Q", "quit"),
+        ("", ""),
+        ("?", "close this help"),
+      ]
   }
   let block = @widget.Block::new()
     .title(" Key Bindings ")
@@ -143,10 +145,10 @@ pub fn render_help_overlay(
   // Longest key: "Tab / Shift-Tab" (15 cols) + 1 leading space + 2 trailing = 18
   for i = 0; i < bindings.length(); i = i + 1 {
     let (key, desc) = bindings[i]
-    let cols = @layout.Layout::new(
-      @layout.Horizontal,
-      [@layout.Length(18), @layout.Min(0)],
-    ).split(rows[i])
+    let cols = @layout.Layout::new(@layout.Horizontal, [
+      @layout.Length(18),
+      @layout.Min(0),
+    ]).split(rows[i])
     let desc_width = cols[1].width
     let desc_text = if @buffer.str_display_width(desc) <= desc_width {
       desc
