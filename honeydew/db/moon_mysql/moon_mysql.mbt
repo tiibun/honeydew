@@ -37,7 +37,7 @@ pub fn MoonMysqlConn::close(self : MoonMysqlConn) -> Unit {
 ///|
 /// Kick off a non-blocking query in a background task.
 pub fn MoonMysqlConn::async_start(self : MoonMysqlConn, sql : String) -> Bool {
-  let task = self.group.spawn(fn() { self.do_query(sql) })
+  let task = self.group.spawn(fn() { self.query(sql) })
   self.running_task = Some(task)
   self.last_result = None
   true
@@ -88,7 +88,24 @@ pub fn MoonMysqlConn::query(
   self : MoonMysqlConn,
   sql : String,
 ) -> Result[@db.QueryResult, String] {
-  self.do_query(sql)
+  if @db.is_write_statement(sql) {
+    try @mysql_proto.execute(self.conn, sql) catch {
+      e => Err(e.to_string())
+    } noraise {
+      ok =>
+        Ok({
+          columns: [],
+          rows: [],
+          affected_rows: Some(ok.affected_rows.to_int()),
+        })
+    }
+  } else {
+    try @mysql_proto.query(self.conn, sql) catch {
+      e => Err(e.to_string())
+    } noraise {
+      rs => Ok(result_set_to_query_result(rs))
+    }
+  }
 }
 
 ///|
@@ -99,8 +116,7 @@ pub fn MoonMysqlConn::tables(
     self.query(
       "SELECT table_name FROM information_schema.tables WHERE table_schema=database() AND table_type='BASE TABLE' ORDER BY table_name",
     ) {
-    Ok(r) =>
-      Ok(r.rows.map(fn(row) { if row.length() > 0 { row[0] } else { "" } }))
+    Ok(r) => Ok(@db.first_column(r.rows))
     Err(e) => Err(e)
   }
 }
@@ -113,8 +129,7 @@ pub fn MoonMysqlConn::views(
     self.query(
       "SELECT table_name FROM information_schema.tables WHERE table_schema=database() AND table_type='VIEW' ORDER BY table_name",
     ) {
-    Ok(r) =>
-      Ok(r.rows.map(fn(row) { if row.length() > 0 { row[0] } else { "" } }))
+    Ok(r) => Ok(@db.first_column(r.rows))
     Err(e) => Err(e)
   }
 }
@@ -130,20 +145,7 @@ pub fn MoonMysqlConn::columns(
     ) {
     Ok(r) =>
       Ok(
-        r.rows.map(fn(row) {
-          {
-            name: if row.length() > 0 {
-              row[0]
-            } else {
-              ""
-            },
-            col_type: if row.length() > 1 {
-              row[1]
-            } else {
-              ""
-            },
-          }
-        }),
+        r.rows.map(fn(row) { { name: row[0], col_type: row[1] } }),
       )
     Err(e) => Err(e)
   }
@@ -192,32 +194,6 @@ pub impl @db.DbConn for MoonMysqlConn with close(self) {
 ///|
 pub impl @db.DbConn for MoonMysqlConn with cancel(self) {
   self.async_cancel()
-}
-
-///|
-fn MoonMysqlConn::do_query(
-  self : MoonMysqlConn,
-  sql : String,
-) -> Result[@db.QueryResult, String] {
-  let is_write = @db.is_write_statement(sql)
-  if is_write {
-    try @mysql_proto.execute(self.conn, sql) catch {
-      e => Err(e.to_string())
-    } noraise {
-      ok =>
-        Ok({
-          columns: [],
-          rows: [],
-          affected_rows: Some(ok.affected_rows.to_int()),
-        })
-    }
-  } else {
-    try @mysql_proto.query(self.conn, sql) catch {
-      e => Err(e.to_string())
-    } noraise {
-      rs => Ok(result_set_to_query_result(rs))
-    }
-  }
 }
 
 ///|

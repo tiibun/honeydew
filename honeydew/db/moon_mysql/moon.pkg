@@ -6,3 +6,13 @@ import {
   "tiibun/moon_mysql/types" @mysql_types,
   "moonbitlang/async",
 }
+
+import {
+  "tiibun/honeydew/db",
+  "moonbitlang/async",
+} for "test"
+
+import {
+  "tiibun/moon_mysql/types" @mysql_types,
+  "tiibun/moon_mysql/protocol" @mysql_proto,
+} for "wbtest"

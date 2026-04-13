@@ -164,10 +164,7 @@ pub async fn PgConn::tables(self : PgConn) -> Result[Array[String], String] {
     self.query(
       "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename",
     ) {
-    Ok(result) =>
-      Ok(
-        result.rows.map(fn(row) { if row.length() > 0 { row[0] } else { "" } }),
-      )
+    Ok(result) => Ok(@db.first_column(result.rows))
     Err(e) => Err(e)
   }
 }
@@ -178,10 +175,7 @@ pub async fn PgConn::views(self : PgConn) -> Result[Array[String], String] {
     self.query(
       "SELECT viewname FROM pg_views WHERE schemaname='public' ORDER BY viewname",
     ) {
-    Ok(result) =>
-      Ok(
-        result.rows.map(fn(row) { if row.length() > 0 { row[0] } else { "" } }),
-      )
+    Ok(result) => Ok(@db.first_column(result.rows))
     Err(e) => Err(e)
   }
 }

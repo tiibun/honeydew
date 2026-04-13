@@ -35,6 +35,12 @@ pub(all) struct QueryResult {
 }
 
 ///|
+/// Extract the first column from each row. Used by tables() and views().
+pub fn first_column(rows : Array[Array[String]]) -> Array[String] {
+  rows.map(fn(row) { if row.length() > 0 { row[0] } else { "" } })
+}
+
+///|
 pub fn QueryResult::empty() -> QueryResult {
   { columns: [], rows: [], affected_rows: None }
 }
