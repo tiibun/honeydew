@@ -3,7 +3,7 @@ import {
   "tiibun/honeydew/db",
   "tiibun/honeydew/db/sqlite",
   "tiibun/honeydew/db/postgres",
-  "tiibun/honeydew/db/mysql",
+  "tiibun/honeydew/db/moon_mysql" @moon_mysql_db,
   "tiibun/honeytui/layout",
   "tiibun/honeytui/terminal",
   "tiibun/honeytui/widget",

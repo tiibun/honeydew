@@ -464,16 +464,17 @@ pub async fn AppState::do_connect(self : AppState) -> AppState {
     }
     _ => {
       let port = str_to_int(form.port.value(), 3306)
-      match
-        @mysql.MysqlConn::connect(
+      Ok(
+        @moon_mysql_db.MoonMysqlConn::connect(
           form.host.value(),
           port,
           form.database.value(),
           form.username.value(),
           form.password.value(),
-        ) {
-        Ok(c) => Ok(c)
-        Err(e) => Err(e)
+          self.group,
+        ),
+      ) catch {
+        e => Err(e.to_string())
       }
     }
   }

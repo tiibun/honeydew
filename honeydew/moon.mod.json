@@ -4,7 +4,8 @@
   "deps": {
     "tiibun/honeytui": "0.1.0",
     "moonbitlang/async": "0.17.0",
-    "moonbit-community/postgres": "0.0.2"
+    "moonbit-community/postgres": "0.0.2",
+    "tiibun/moon_mysql": "0.1.0"
   },
   "readme": "README.mbt.md",
   "repository": "",

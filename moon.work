@@ -1,5 +1,6 @@
 members = [
   "./honeytui",
   "./honeydew",
+  "./moon_mysql",
 ]
 preferred_target = "native"

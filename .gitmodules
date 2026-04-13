@@ -1,0 +1,3 @@
+[submodule "moon_mysql"]
+	path = moon_mysql
+	url = https://github.com/tiibun/moon_mysql.git
