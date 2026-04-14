@@ -8,6 +8,9 @@ pub(open) trait DbConn {
   async tables(Self) -> Result[Array[String], String]
   async views(Self) -> Result[Array[String], String]
   async columns(Self, String) -> Result[Array[ColumnInfo], String]
+  async indexes(Self, String) -> Result[Array[String], String]
+  async triggers(Self, String) -> Result[Array[String], String]
+  async routines(Self) -> Result[Array[String], String]
   close(Self) -> Unit
   cancel(Self) -> Unit
 }

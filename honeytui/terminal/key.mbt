@@ -21,6 +21,7 @@ pub(all) enum Key {
   CtrlD
   CtrlE
   CtrlF
+  CtrlJ
   CtrlL
   CtrlM
   CtrlO
@@ -63,6 +64,8 @@ pub fn Key::from_bytes(bytes : Array[Int]) -> Key {
         CtrlE
       } else if b == 6 {
         CtrlF
+      } else if b == 10 {
+        CtrlJ
       } else if b == 12 {
         CtrlL
       } else if b == 15 {

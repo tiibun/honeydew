@@ -16,7 +16,7 @@ pub fn render_connect(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   // Outer box: up to 82 wide, 16 tall, centred
   let box_area = @layout.Placement::centered(
     @layout.AtMost(82),
-    @layout.AtMost(16),
+    @layout.AtMost(22),
   ).resolve(content)
   let form = state.conn_form
   let kind_label = @app.DbKind::label(db_kind(form.kind_idx))
@@ -236,9 +236,9 @@ fn render_form_panel(
   // 0: Name field
   // 1: DB kind selector
   // 2: spacer
-  // 3..7: connection text fields (up to 5)
-  // 8: spacer
-  // 9: error / hint
+  // 3..12: connection fields (up to 10)
+  // 13: spacer
+  // 14: error / hint
   let rows = @layout.Layout::new(@layout.Vertical, [
     @layout.Length(1), // 0: profile name
     @layout.Length(1), // 1: DB kind
@@ -248,8 +248,13 @@ fn render_form_panel(
     @layout.Length(1), // 5: field 3
     @layout.Length(1), // 6: field 4
     @layout.Length(1), // 7: field 5
-    @layout.Length(1), // 8: spacer
-    @layout.Min(1), // 9: error/hint
+    @layout.Length(1), // 8: field 6
+    @layout.Length(1), // 9: field 7
+    @layout.Length(1), // 10: field 8
+    @layout.Length(1), // 11: field 9
+    @layout.Length(1), // 12: field 10
+    @layout.Length(1), // 13: spacer
+    @layout.Min(1), // 14: error/hint
   ]).split(inner)
   // ── Row 0: Profile name ──
   let name_label = "Name: "
@@ -283,11 +288,27 @@ fn render_form_panel(
   )
   // ── Rows 3..7: connection text fields ──
   let field_labels : Array[String] = match form.kind_idx {
-    0 => ["Database path", "", "", "", ""]
-    _ => ["Host", "Port", "Database", "User", "Password"]
+    0 => ["Database path", "", "", "", "", "", "", "", "", ""]
+    _ =>
+      [
+        "Host", "Port", "Database", "User", "Password", "Timeout", "TLS", "CA cert",
+        "Client cert", "Client key",
+      ]
   }
   let field_inputs : Array[@widget.Input] = match form.kind_idx {
-    0 => [form.database, form.port, form.database, form.username, form.password]
+    0 =>
+      [
+        form.database,
+        form.port,
+        form.database,
+        form.username,
+        form.password,
+        form.connect_timeout_secs,
+        form.ca_cert_path,
+        form.ca_cert_path,
+        form.client_cert_path,
+        form.client_key_path,
+      ]
     _ =>
       [
         form.host,
@@ -295,16 +316,21 @@ fn render_form_panel(
         form.database,
         form.username,
         form.password.masked(true),
+        form.connect_timeout_secs,
+        form.ca_cert_path,
+        form.ca_cert_path,
+        form.client_cert_path,
+        form.client_key_path,
       ]
   }
   let visible_fields = match form.kind_idx {
     0 => 1
-    _ => 5
+    _ => 10
   }
   for fi = 0; fi < visible_fields; fi = fi + 1 {
     let row = rows[3 + fi]
     let label = field_labels[fi]
-    let lw = 10
+    let lw = 13
     let iw = if row.width > lw { row.width - lw } else { 0 }
     let label_area = @layout.Rect::new(row.x, row.y, lw, 1)
     let input_area = @layout.Rect::new(row.x + lw, row.y, iw, 1)
@@ -315,14 +341,27 @@ fn render_form_panel(
       label_area,
     )
     let is_focused = form_focus && form.focus_idx == fi + 2
-    let input = field_inputs[fi].focused(is_focused)
-    frame.render_widget(input, input_area)
+    if form.kind_idx != 0 && fi == 6 {
+      let tls_text = if form.tls_enabled { "[ On ]" } else { "[ Off ]" }
+      let tls_style = if is_focused {
+        @style.Style::default().fg(@style.Yellow).add_modifier(@style.bold)
+      } else {
+        @style.Style::default().fg(@style.White)
+      }
+      frame.render_widget(
+        @widget.Paragraph::new(tls_text).style(tls_style),
+        input_area,
+      )
+    } else {
+      let input = field_inputs[fi].focused(is_focused)
+      frame.render_widget(input, input_area)
+    }
   }
   // ── Row 9: Error or hint ──
   let bottom_text = if form.error != "" {
     form.error
   } else {
-    "Enter=connect  Ctrl+S=save  Tab=switch  d=delete"
+    "Enter=connect  Space=toggle TLS  Ctrl+S=save  Tab=switch  d=delete"
   }
   let bottom_style = if form.error != "" {
     @style.Style::default().fg(@style.Red)
@@ -331,7 +370,7 @@ fn render_form_panel(
   }
   frame.render_widget(
     @widget.Paragraph::new(bottom_text).style(bottom_style),
-    rows[9],
+    rows[14],
   )
 }
 
@@ -369,6 +408,8 @@ fn selected_profile_preview_fields(
         ("Port", if profile.port > 0 { profile.port.to_string() } else { "" }),
         ("Database", profile.database),
         ("User", profile.username),
+        ("Timeout", "\{profile.connect_timeout_secs}s"),
+        ("TLS", if profile.tls_enabled { "On" } else { "Off" }),
       ]
   }
 }

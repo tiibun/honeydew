@@ -198,6 +198,40 @@ pub fn SqliteConn::columns(
 }
 
 ///|
+pub fn SqliteConn::indexes(
+  self : SqliteConn,
+  table : String,
+) -> Result[Array[String], String] {
+  match self.query("PRAGMA index_list(\{table})") {
+    Ok(result) =>
+      Ok(
+        result.rows.map(fn(row) { if row.length() > 1 { row[1] } else { "" } }),
+      )
+    Err(e) => Err(e)
+  }
+}
+
+///|
+pub fn SqliteConn::triggers(
+  self : SqliteConn,
+  table : String,
+) -> Result[Array[String], String] {
+  match
+    self.query(
+      "SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name='\{table}' ORDER BY name",
+    ) {
+    Ok(result) => Ok(@db.first_column(result.rows))
+    Err(e) => Err(e)
+  }
+}
+
+///|
+pub fn SqliteConn::routines(self : SqliteConn) -> Result[Array[String], String] {
+  let _ = self
+  Ok([])
+}
+
+///|
 fn read_row(
   stmt_id : Int,
   ncols : Int,
@@ -250,6 +284,21 @@ pub impl @db.DbConn for SqliteConn with views(self) {
 ///|
 pub impl @db.DbConn for SqliteConn with columns(self, table) {
   self.columns(table)
+}
+
+///|
+pub impl @db.DbConn for SqliteConn with indexes(self, table) {
+  self.indexes(table)
+}
+
+///|
+pub impl @db.DbConn for SqliteConn with triggers(self, table) {
+  self.triggers(table)
+}
+
+///|
+pub impl @db.DbConn for SqliteConn with routines(self) {
+  self.routines()
 }
 
 ///|

@@ -33,3 +33,11 @@ test "TextArea renders line numbers when enabled" {
   assert_eq(buf.get(1, 2).symbol, "2")
   assert_eq(buf.get(3, 2).symbol, "b")
 }
+
+///|
+test "TextArea::with_cursor moves the cursor to a specific line and column" {
+  let ta = @widget.TextArea::new().with_value("alpha\nbeta").with_cursor(0, 2)
+  assert_eq(ta.cursor_pos(), 2)
+  let moved = ta.with_cursor(1, 3)
+  assert_eq(moved.cursor_pos(), 9)
+}

@@ -221,3 +221,26 @@ test "Tree renders icon and indentation" {
   assert_eq(buf.get(4, 2).symbol, " ")
   assert_eq(buf.get(5, 2).symbol, "t")
 }
+
+///|
+test "Tree::replace_selected_children inserts lazy-loaded children under selected node" {
+  let t = @widget.Tree::new([
+    @widget.TreeItem::node("db", 0),
+    @widget.TreeItem::node("Tables", 1),
+    @widget.TreeItem::collapsed_node_with_data("users", 2, "table:users"),
+  ])
+  let selected = t.handle_key(Down).handle_key(Down)
+  let expanded = selected.replace_selected_children([
+    @widget.TreeItem::leaf("id : INTEGER", 3, "id"),
+    @widget.TreeItem::leaf("INDEX users_name_idx", 3, "users_name_idx"),
+  ])
+  assert_eq(expanded.visible_count(), 5)
+  assert_true(
+    expanded.selected_item() is Some(item) &&
+    item.label == "users" &&
+    item.depth == 2 &&
+    item.expandable &&
+    item.expanded &&
+    item.data == "table:users",
+  )
+}

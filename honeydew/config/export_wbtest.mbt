@@ -30,3 +30,22 @@ test "export_results_csv writes CSV to the export path" {
   let n = hd_file_read(path_b, path_b.length(), buf, buf.length())
   assert_eq(fixed_bytes_to_str(buf, n), "id,name\n1,Ada\n")
 }
+
+///|
+test "export_results_json writes JSON to the export path" {
+  let path = "\{config_dir()}/exports/results.json"
+  let result = export_results_json(["id", "name"], [["1", "Ada"]])
+  assert_eq(result, Ok(path))
+  let content = match read_text_file(path) {
+    Ok(text) => text
+    Err(e) => fail("read_text_file failed: \{e}")
+  }
+  assert_eq(content, "[{\"id\":\"1\",\"name\":\"Ada\"}]")
+}
+
+///|
+test "write_text_file and read_text_file round-trip content" {
+  let path = "\{config_dir()}/exports/load.sql"
+  assert_eq(write_text_file(path, "SELECT 42;"), Ok(()))
+  assert_eq(read_text_file(path), Ok("SELECT 42;"))
+}

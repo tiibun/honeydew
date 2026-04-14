@@ -35,6 +35,7 @@ test "Key::from_bytes - control keys" {
   assert_eq(@terminal.Key::from_bytes([3]), CtrlC)
   assert_eq(@terminal.Key::from_bytes([4]), CtrlD)
   assert_eq(@terminal.Key::from_bytes([6]), CtrlF)
+  assert_eq(@terminal.Key::from_bytes([10]), CtrlJ)
   assert_eq(@terminal.Key::from_bytes([15]), CtrlO)
   assert_eq(@terminal.Key::from_bytes([12]), CtrlL)
   assert_eq(@terminal.Key::from_bytes([17]), CtrlQ)

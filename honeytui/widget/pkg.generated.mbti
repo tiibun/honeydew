@@ -131,6 +131,7 @@ pub fn TextArea::new() -> Self
 pub fn TextArea::show_line_numbers(Self, Bool) -> Self
 pub fn TextArea::style(Self, @style.Style) -> Self
 pub fn TextArea::value(Self) -> String
+pub fn TextArea::with_cursor(Self, Int, Int) -> Self
 pub fn TextArea::with_highlight(Self, Int, Int) -> Self
 pub fn TextArea::with_styled_lines(Self, Array[Array[(String, @style.Style)]]) -> Self
 pub fn TextArea::with_value(Self, String) -> Self
@@ -148,6 +149,7 @@ pub fn Tree::block(Self, Block) -> Self
 pub fn Tree::handle_click(Self, Int, Int, @layout.Rect) -> Self
 pub fn Tree::handle_key(Self, @terminal.Key) -> Self
 pub fn Tree::new(Array[TreeItem]) -> Self
+pub fn Tree::replace_selected_children(Self, Array[TreeItem]) -> Self
 pub fn Tree::selected_data(Self) -> String?
 pub fn Tree::selected_item(Self) -> TreeItem?
 pub fn Tree::selected_style(Self, @style.Style) -> Self
@@ -162,6 +164,7 @@ pub(all) struct TreeItem {
   data : String
 }
 pub fn TreeItem::collapsed_node(String, Int) -> Self
+pub fn TreeItem::collapsed_node_with_data(String, Int, String) -> Self
 pub fn TreeItem::leaf(String, Int, String) -> Self
 pub fn TreeItem::node(String, Int) -> Self
 

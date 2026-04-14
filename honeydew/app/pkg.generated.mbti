@@ -43,6 +43,11 @@ pub(all) struct AppState {
   history_index : Int?
   history_draft : String?
   results : @widget.Table
+  search_input : @widget.Input?
+  search_matches : Array[SearchMatch]
+  search_match_index : Int
+  search_editing : Bool
+  file_prompt : @widget.Input?
   focus : Panel
   status : String
   should_quit : Bool
@@ -64,10 +69,13 @@ pub fn AppState::delete_selected_profile(Self) -> Self
 pub fn AppState::disconnect(Self) -> Self
 pub async fn AppState::do_connect(Self) -> Self
 pub fn AppState::export_results_csv(Self) -> Self
+pub fn AppState::export_results_json(Self) -> Self
 pub fn AppState::handle_results_click(Self, Int, Int, Int, Int) -> Self
-pub fn AppState::handle_schema_click(Self, Int, Int, Int, Int) -> Self
+pub async fn AppState::handle_schema_click(Self, Int, Int, Int, Int) -> Self
 pub fn AppState::is_query_running(Self) -> Bool
+pub async fn AppState::lazy_expand_schema_selection(Self) -> Self
 pub fn AppState::load_selected_profile(Self) -> Self
+pub fn AppState::load_sql_file(Self, String) -> Result[String, String]
 pub fn AppState::menu_bar_left_label(Self) -> String
 pub fn AppState::navigate_profiles(Self, @terminal.Key) -> Self
 pub fn AppState::new(@async.TaskGroup[Unit]) -> Self
@@ -89,6 +97,11 @@ pub(all) struct ConnForm {
   database : @widget.Input
   username : @widget.Input
   password : @widget.Input
+  connect_timeout_secs : @widget.Input
+  tls_enabled : Bool
+  ca_cert_path : @widget.Input
+  client_cert_path : @widget.Input
+  client_key_path : @widget.Input
   focus_idx : Int
   error : String
 }
@@ -124,6 +137,12 @@ pub(all) enum Screen {
   Connect
   Main
 } derive(Eq)
+
+pub(all) struct SearchMatch {
+  line : Int
+  col : Int
+  length : Int
+} derive(Eq, Show)
 
 // Type aliases
 

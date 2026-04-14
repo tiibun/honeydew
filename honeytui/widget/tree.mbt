@@ -32,6 +32,15 @@ pub fn TreeItem::collapsed_node(label : String, depth : Int) -> TreeItem {
 }
 
 ///|
+pub fn TreeItem::collapsed_node_with_data(
+  label : String,
+  depth : Int,
+  data : String,
+) -> TreeItem {
+  { label, depth, expandable: true, expanded: false, data }
+}
+
+///|
 /// A collapsible tree widget.
 /// All items (visible and hidden) are stored in `items`; visibility is
 /// computed dynamically from the `expanded` flags using a single-pass algorithm.
@@ -110,6 +119,42 @@ pub fn Tree::selected_item(self : Tree) -> TreeItem? {
 ///   Home / End     — jump to first/last visible item
 pub fn Tree::handle_key(self : Tree, key : @terminal.Key) -> Tree {
   self.handle_key_inner(key)
+}
+
+///|
+pub fn Tree::replace_selected_children(
+  self : Tree,
+  children : Array[TreeItem],
+) -> Tree {
+  let vis = compute_visible(self.items)
+  if self.selected >= vis.length() {
+    return self
+  }
+  let parent_idx = vis[self.selected]
+  let parent = self.items[parent_idx]
+  if !parent.expandable {
+    return self
+  }
+  let items : Array[TreeItem] = []
+  for i = 0; i <= parent_idx; i = i + 1 {
+    if i == parent_idx {
+      items.push({ ..parent, expanded: true })
+    } else {
+      items.push(self.items[i])
+    }
+  }
+  for child in children {
+    items.push(child)
+  }
+  let mut next_idx = parent_idx + 1
+  while next_idx < self.items.length() &&
+        self.items[next_idx].depth > parent.depth {
+    next_idx += 1
+  }
+  for i = next_idx; i < self.items.length(); i = i + 1 {
+    items.push(self.items[i])
+  }
+  { ..self, items, }
 }
 
 ///|

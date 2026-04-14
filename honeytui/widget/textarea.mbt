@@ -117,6 +117,17 @@ pub fn TextArea::line_count(self : TextArea) -> Int {
 }
 
 ///|
+pub fn TextArea::with_cursor(
+  self : TextArea,
+  cursor_line : Int,
+  cursor_col : Int,
+) -> TextArea {
+  let line = clamp(cursor_line, 0, self.lines.length() - 1)
+  let col = clamp(cursor_col, 0, self.lines[line].length())
+  { ..self, cursor_line: line, cursor_col: col }
+}
+
+///|
 /// Return the absolute character offset of the cursor in `value()`.
 pub fn TextArea::cursor_pos(self : TextArea) -> Int {
   let mut pos = 0
@@ -500,5 +511,16 @@ fn min(a : Int, b : Int) -> Int {
     a
   } else {
     b
+  }
+}
+
+///|
+fn clamp(value : Int, lower : Int, upper : Int) -> Int {
+  if value < lower {
+    lower
+  } else if value > upper {
+    upper
+  } else {
+    value
   }
 }

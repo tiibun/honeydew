@@ -7,6 +7,11 @@ pub(all) struct ConnProfile {
   port : Int
   database : String
   username : String
+  tls_enabled : Bool
+  ca_cert_path : String
+  client_cert_path : String
+  client_key_path : String
+  connect_timeout_secs : Int
 }
 
 ///|
@@ -97,7 +102,40 @@ fn parse_profile_json(json : Json) -> ConnProfile? {
         Some(String(s)) => s
         _ => ""
       }
-      Some({ name, kind_idx, host, port, database, username })
+      let tls_enabled = match obj.get("tls_enabled") {
+        Some(True) => true
+        Some(False) => false
+        _ => false
+      }
+      let ca_cert_path = match obj.get("ca_cert_path") {
+        Some(String(s)) => s
+        _ => ""
+      }
+      let client_cert_path = match obj.get("client_cert_path") {
+        Some(String(s)) => s
+        _ => ""
+      }
+      let client_key_path = match obj.get("client_key_path") {
+        Some(String(s)) => s
+        _ => ""
+      }
+      let connect_timeout_secs = match obj.get("connect_timeout_secs") {
+        Some(Number(n, ..)) => n.to_int()
+        _ => 10
+      }
+      Some({
+        name,
+        kind_idx,
+        host,
+        port,
+        database,
+        username,
+        tls_enabled,
+        ca_cert_path,
+        client_cert_path,
+        client_key_path,
+        connect_timeout_secs,
+      })
     }
     _ => None
   }
@@ -131,6 +169,16 @@ fn profile_to_json(p : ConnProfile, sb : StringBuilder) -> Unit {
   json_write_str(p.database, sb)
   sb.write_string(",\"username\":")
   json_write_str(p.username, sb)
+  sb.write_string(",\"tls_enabled\":")
+  sb.write_string(if p.tls_enabled { "true" } else { "false" })
+  sb.write_string(",\"ca_cert_path\":")
+  json_write_str(p.ca_cert_path, sb)
+  sb.write_string(",\"client_cert_path\":")
+  json_write_str(p.client_cert_path, sb)
+  sb.write_string(",\"client_key_path\":")
+  json_write_str(p.client_key_path, sb)
+  sb.write_string(",\"connect_timeout_secs\":")
+  sb.write_string(p.connect_timeout_secs.to_string())
   sb.write_char('}')
 }
 

@@ -55,14 +55,75 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     @style.Style::default().fg(@style.BrightBlack)
   }
   let editor_block = @widget.Block::new()
-    .title(" SQL (Ctrl+Enter=run current  Ctrl+X=EXPLAIN  F5=run all) ")
+    .title(
+      " SQL (Ctrl+Enter=run current  Ctrl+F=find  Ctrl+O=open  Ctrl+X=EXPLAIN  F5=run all) ",
+    )
     .borders(@widget.Borders::all())
     .border_style(editor_border_style)
+  frame.render_widget(editor_block, editor_area)
+  let editor_inner = editor_block.inner(editor_area)
+  let show_editor_bar = (
+      state.file_prompt is Some(_) || state.search_input is Some(_)
+    ) &&
+    editor_inner.height > 1
+  let editor_rows = if show_editor_bar {
+    @layout.Layout::new(@layout.Vertical, [@layout.Min(0), @layout.Length(1)]).split(
+      editor_inner,
+    )
+  } else {
+    [editor_inner]
+  }
   let sql_widget = state.sql_input
-    .focused(editor_focused)
+    .focused(
+      editor_focused && !state.search_editing && state.file_prompt is None,
+    )
     .show_line_numbers(true)
-    .block(editor_block)
-  frame.render_widget(sql_widget, editor_area)
+  frame.render_widget(sql_widget, editor_rows[0])
+  match (state.file_prompt, state.search_input) {
+    (Some(input), _) if editor_rows.length() > 1 => {
+      let search_area = editor_rows[1]
+      let cols = @layout.Layout::new(@layout.Horizontal, [
+        @layout.Length(6),
+        @layout.Min(0),
+      ]).split(search_area)
+      frame.render_widget(
+        @widget.Paragraph::new("Open: ").style(
+          @style.Style::default().fg(@style.Cyan),
+        ),
+        cols[0],
+      )
+      frame.render_widget(input.focused(true), cols[1])
+    }
+    (None, Some(input)) if editor_rows.length() > 1 => {
+      let search_area = editor_rows[1]
+      let count_width = 10
+      let cols = @layout.Layout::new(@layout.Horizontal, [
+        @layout.Length(6),
+        @layout.Min(0),
+        @layout.Length(count_width),
+      ]).split(search_area)
+      frame.render_widget(
+        @widget.Paragraph::new("Find: ").style(
+          @style.Style::default().fg(@style.Cyan),
+        ),
+        cols[0],
+      )
+      let search_input = input.focused(state.search_editing)
+      frame.render_widget(search_input, cols[1])
+      let match_count = if state.search_matches.length() == 0 {
+        "0/0"
+      } else {
+        "\{state.search_match_index + 1}/\{state.search_matches.length()}"
+      }
+      frame.render_widget(
+        @widget.Paragraph::new(match_count).style(
+          @style.Style::default().fg(@style.BrightBlack),
+        ),
+        cols[2],
+      )
+    }
+    _ => ()
+  }
   // ---- Results ----
   let results_focused = state.focus == @app.Results
   let results_border_style = if results_focused {

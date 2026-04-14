@@ -88,3 +88,30 @@ test "sqlite query reports affected rows for update" {
   assert_eq(result.rows.length(), 0)
   conn.close()
 }
+
+///|
+test "sqlite indexes and triggers introspection" {
+  let conn = match @db_sqlite.SqliteConn::open(":memory:") {
+    Ok(c) => c
+    Err(e) => fail("open failed: \{e}")
+  }
+  ignore(conn.query("CREATE TABLE users (id INTEGER, name TEXT)"))
+  ignore(conn.query("CREATE INDEX users_name_idx ON users(name)"))
+  ignore(
+    conn.query(
+      "CREATE TRIGGER users_touch AFTER INSERT ON users BEGIN UPDATE users SET name = NEW.name WHERE id = NEW.id; END",
+    ),
+  )
+  let indexes = match conn.indexes("users") {
+    Ok(v) => v
+    Err(e) => fail("indexes failed: \{e}")
+  }
+  let triggers = match conn.triggers("users") {
+    Ok(v) => v
+    Err(e) => fail("triggers failed: \{e}")
+  }
+  assert_true(indexes.contains("users_name_idx"))
+  assert_eq(triggers, ["users_touch"])
+  assert_eq(conn.routines(), Ok(([] : Array[String])))
+  conn.close()
+}

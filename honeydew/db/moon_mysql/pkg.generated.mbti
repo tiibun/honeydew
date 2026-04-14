@@ -25,8 +25,11 @@ pub fn MoonMysqlConn::async_start(Self, String) -> Bool
 pub fn MoonMysqlConn::close(Self) -> Unit
 pub fn MoonMysqlConn::columns(Self, String) -> Result[Array[@db.ColumnInfo], String]
 pub fn MoonMysqlConn::connect(String, Int, String, String, String, @async.TaskGroup[Unit]) -> Self raise
+pub fn MoonMysqlConn::indexes(Self, String) -> Result[Array[String], String]
 pub fn MoonMysqlConn::query(Self, String) -> Result[@db.QueryResult, String]
+pub fn MoonMysqlConn::routines(Self) -> Result[Array[String], String]
 pub fn MoonMysqlConn::tables(Self) -> Result[Array[String], String]
+pub fn MoonMysqlConn::triggers(Self, String) -> Result[Array[String], String]
 pub fn MoonMysqlConn::views(Self) -> Result[Array[String], String]
 pub impl @db.DbConn for MoonMysqlConn
 

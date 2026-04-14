@@ -18,10 +18,23 @@ pub async fn PgConn::connect(
   database : String,
   user : String,
   password : String,
+  tls_enabled : Bool,
   group : @async.TaskGroup[Unit],
 ) -> (PgConn, @pg.Connection) {
   let pwd_opt : String? = if password == "" { None } else { Some(password) }
-  let cfg = @pg.Config::new(host, user~, database~, password?=pwd_opt, port~)
+  let ssl_mode = if tls_enabled {
+    @pg.SslMode::require()
+  } else {
+    @pg.SslMode::disable()
+  }
+  let cfg = @pg.Config::new(
+    host,
+    user~,
+    database~,
+    password?=pwd_opt,
+    port~,
+    ssl_mode~,
+  )
   let (client, connection) = @pg.connect(cfg)
   (
     {
@@ -243,6 +256,45 @@ pub async fn PgConn::columns(
 }
 
 ///|
+pub async fn PgConn::indexes(
+  self : PgConn,
+  table : String,
+) -> Result[Array[String], String] {
+  match
+    self.query(
+      "SELECT indexname FROM pg_indexes WHERE schemaname='public' AND tablename='\{table}' ORDER BY indexname",
+    ) {
+    Ok(result) => Ok(@db.first_column(result.rows))
+    Err(e) => Err(e)
+  }
+}
+
+///|
+pub async fn PgConn::triggers(
+  self : PgConn,
+  table : String,
+) -> Result[Array[String], String] {
+  match
+    self.query(
+      "SELECT trigger_name FROM information_schema.triggers WHERE trigger_schema='public' AND event_object_table='\{table}' ORDER BY trigger_name",
+    ) {
+    Ok(result) => Ok(@db.first_column(result.rows))
+    Err(e) => Err(e)
+  }
+}
+
+///|
+pub async fn PgConn::routines(self : PgConn) -> Result[Array[String], String] {
+  match
+    self.query(
+      "SELECT routine_name FROM information_schema.routines WHERE routine_schema='public' ORDER BY routine_name",
+    ) {
+    Ok(result) => Ok(@db.first_column(result.rows))
+    Err(e) => Err(e)
+  }
+}
+
+///|
 pub impl @db.DbConn for PgConn with async_start(self, sql) {
   self.async_start(sql)
 }
@@ -275,6 +327,21 @@ pub impl @db.DbConn for PgConn with views(self) {
 ///|
 pub impl @db.DbConn for PgConn with columns(self, table) {
   self.columns(table)
+}
+
+///|
+pub impl @db.DbConn for PgConn with indexes(self, table) {
+  self.indexes(table)
+}
+
+///|
+pub impl @db.DbConn for PgConn with triggers(self, table) {
+  self.triggers(table)
+}
+
+///|
+pub impl @db.DbConn for PgConn with routines(self) {
+  self.routines()
 }
 
 ///|

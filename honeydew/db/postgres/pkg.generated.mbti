@@ -24,10 +24,13 @@ pub fn PgConn::async_result(Self, Bool) -> Result[@db.QueryResult, String]
 pub fn PgConn::async_start(Self, String) -> Bool
 pub fn PgConn::close(Self) -> Unit
 pub async fn PgConn::columns(Self, String) -> Result[Array[@db.ColumnInfo], String]
-pub async fn PgConn::connect(String, Int, String, String, String, @async.TaskGroup[Unit]) -> (Self, @client.Connection)
+pub async fn PgConn::connect(String, Int, String, String, String, Bool, @async.TaskGroup[Unit]) -> (Self, @client.Connection)
+pub async fn PgConn::indexes(Self, String) -> Result[Array[String], String]
 pub fn PgConn::interrupt(Self) -> Unit
 pub async fn PgConn::query(Self, String) -> Result[@db.QueryResult, String]
+pub async fn PgConn::routines(Self) -> Result[Array[String], String]
 pub async fn PgConn::tables(Self) -> Result[Array[String], String]
+pub async fn PgConn::triggers(Self, String) -> Result[Array[String], String]
 pub async fn PgConn::views(Self) -> Result[Array[String], String]
 pub impl @db.DbConn for PgConn
 

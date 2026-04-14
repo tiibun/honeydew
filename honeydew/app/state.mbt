@@ -14,16 +14,7 @@ pub async fn build_schema_tree(
   if tables.length() > 0 {
     items.push(@widget.TreeItem::node("Tables", 1))
     for t in tables {
-      items.push(@widget.TreeItem::collapsed_node(t, 2))
-      let cols = match handle.columns(t) {
-        Ok(c) => c
-        Err(_) => []
-      }
-      for col in cols {
-        items.push(
-          @widget.TreeItem::leaf("\{col.name} : \{col.col_type}", 3, col.name),
-        )
-      }
+      items.push(@widget.TreeItem::collapsed_node_with_data(t, 2, "table:\{t}"))
     }
   }
   let views = match handle.views() {
@@ -33,16 +24,17 @@ pub async fn build_schema_tree(
   if views.length() > 0 {
     items.push(@widget.TreeItem::node("Views", 1))
     for v in views {
-      items.push(@widget.TreeItem::collapsed_node(v, 2))
-      let cols = match handle.columns(v) {
-        Ok(c) => c
-        Err(_) => []
-      }
-      for col in cols {
-        items.push(
-          @widget.TreeItem::leaf("\{col.name} : \{col.col_type}", 3, col.name),
-        )
-      }
+      items.push(@widget.TreeItem::collapsed_node_with_data(v, 2, "view:\{v}"))
+    }
+  }
+  let routines = match handle.routines() {
+    Ok(r) => r
+    Err(_) => []
+  }
+  if routines.length() > 0 {
+    items.push(@widget.TreeItem::node("Routines", 1))
+    for routine in routines {
+      items.push(@widget.TreeItem::leaf(routine, 2, "routine:\{routine}"))
     }
   }
   @widget.Tree::new(items)
@@ -72,6 +64,13 @@ pub(all) enum Panel {
   Editor
   Results
 } derive(Eq)
+
+///|
+pub(all) struct SearchMatch {
+  line : Int
+  col : Int
+  length : Int
+} derive(Eq, Show)
 
 ///|
 pub let schema_width_percent : Int = 28
@@ -107,6 +106,11 @@ pub(all) struct ConnForm {
   database : @widget.Input
   username : @widget.Input
   password : @widget.Input
+  connect_timeout_secs : @widget.Input
+  tls_enabled : Bool
+  ca_cert_path : @widget.Input
+  client_cert_path : @widget.Input
+  client_key_path : @widget.Input
   focus_idx : Int
   error : String
 }
@@ -121,6 +125,11 @@ pub fn ConnForm::new() -> ConnForm {
     database: @widget.Input::new().with_value(":memory:"),
     username: @widget.Input::new().with_value(""),
     password: @widget.Input::new().with_value(""),
+    connect_timeout_secs: @widget.Input::new().with_value("10"),
+    tls_enabled: false,
+    ca_cert_path: @widget.Input::new().with_value(""),
+    client_cert_path: @widget.Input::new().with_value(""),
+    client_key_path: @widget.Input::new().with_value(""),
     focus_idx: 1,
     error: "",
   }
@@ -128,11 +137,11 @@ pub fn ConnForm::new() -> ConnForm {
 
 ///|
 /// Number of connection text fields (excluding name and DB-kind row).
-/// SQLite = 1 (path only), others = 5.
+/// SQLite = 1 (path only), others = 10.
 pub fn ConnForm::field_count(self : ConnForm) -> Int {
   match self.kind_idx {
     0 => 1
-    _ => 5
+    _ => 10
   }
 }
 
@@ -174,6 +183,11 @@ pub fn ConnForm::handle_key(self : ConnForm, key : @terminal.Key) -> ConnForm {
           kind_idx: next_kind,
           port: @widget.Input::new().with_value(default_port),
           database: @widget.Input::new().with_value(default_db),
+          connect_timeout_secs: @widget.Input::new().with_value("10"),
+          tls_enabled: false,
+          ca_cert_path: @widget.Input::new().with_value(""),
+          client_cert_path: @widget.Input::new().with_value(""),
+          client_key_path: @widget.Input::new().with_value(""),
           error: "",
         }
       } else {
@@ -207,6 +221,25 @@ fn ConnForm::route_key_to_field(
             2 => { ..self, database: self.database.handle_key(key) }
             3 => { ..self, username: self.username.handle_key(key) }
             4 => { ..self, password: self.password.handle_key(key) }
+            5 =>
+              {
+                ..self,
+                connect_timeout_secs: self.connect_timeout_secs.handle_key(key),
+              }
+            6 =>
+              if key == Enter || key == Char(' ') {
+                { ..self, tls_enabled: !self.tls_enabled }
+              } else {
+                self
+              }
+            7 => { ..self, ca_cert_path: self.ca_cert_path.handle_key(key) }
+            8 =>
+              {
+                ..self,
+                client_cert_path: self.client_cert_path.handle_key(key),
+              }
+            9 =>
+              { ..self, client_key_path: self.client_key_path.handle_key(key) }
             _ => self
           }
       }
@@ -254,6 +287,11 @@ pub(all) struct AppState {
   history_index : Int?
   history_draft : String?
   results : @widget.Table
+  search_input : @widget.Input?
+  search_matches : Array[SearchMatch]
+  search_match_index : Int
+  search_editing : Bool
+  file_prompt : @widget.Input?
   focus : Panel
   status : String
   should_quit : Bool
@@ -290,6 +328,11 @@ pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
     history_index: None,
     history_draft: None,
     results: @widget.Table::new([], []),
+    search_input: None,
+    search_matches: [],
+    search_match_index: 0,
+    search_editing: false,
+    file_prompt: None,
     focus: Editor,
     status: connect_status(
       if profiles.length() > 0 {
@@ -359,6 +402,13 @@ pub fn AppState::load_selected_profile(self : AppState) -> AppState {
     database: @widget.Input::new().with_value(p.database),
     username: @widget.Input::new().with_value(p.username),
     password: @widget.Input::new().with_value(password),
+    connect_timeout_secs: @widget.Input::new().with_value(
+      p.connect_timeout_secs.to_string(),
+    ),
+    tls_enabled: p.tls_enabled,
+    ca_cert_path: @widget.Input::new().with_value(p.ca_cert_path),
+    client_cert_path: @widget.Input::new().with_value(p.client_cert_path),
+    client_key_path: @widget.Input::new().with_value(p.client_key_path),
     focus_idx: 2,
     error: "",
   }
@@ -385,6 +435,13 @@ pub fn AppState::save_current_profile(self : AppState) -> AppState {
     port: str_to_int(form.port.value(), default_port_int(form.kind_idx)),
     database: form.database.value(),
     username: form.username.value(),
+    tls_enabled: form.tls_enabled,
+    ca_cert_path: form.ca_cert_path.value(),
+    client_cert_path: form.client_cert_path.value(),
+    client_key_path: form.client_key_path.value(),
+    connect_timeout_secs: parse_connect_timeout_secs(
+      form.connect_timeout_secs.value(),
+    ),
   }
   let mut existing_idx = -1
   for i = 0; i < self.profiles.length(); i = i + 1 {
@@ -448,6 +505,7 @@ pub fn AppState::delete_selected_profile(self : AppState) -> AppState {
 /// Attempt to connect using the current ConnForm values.
 pub async fn AppState::do_connect(self : AppState) -> AppState {
   let form = self.conn_form
+  let timeout_ms = connect_timeout_millis(form.connect_timeout_secs.value())
   let result : Result[&@db.DbConn, String] = match form.kind_idx {
     0 => {
       let path = form.database.value()
@@ -457,33 +515,75 @@ pub async fn AppState::do_connect(self : AppState) -> AppState {
       }
     }
     1 => {
-      let port = str_to_int(form.port.value(), 5432)
-      let (conn, connection) = @postgres.PgConn::connect(
-        form.host.value(),
-        port,
-        form.database.value(),
-        form.username.value(),
-        form.password.value(),
-        self.group,
-      ) catch {
-        err => return { ..self, conn_form: { ..form, error: err.to_string() } }
+      if has_custom_cert_paths(form) {
+        return {
+          ..self,
+          conn_form: {
+            ..form,
+            error: "PostgreSQL certificate paths are not supported by the current driver",
+          },
+        }
       }
-      self.group.spawn_bg(async fn() { connection.run() }, allow_failure=true)
-      Ok(conn)
+      let port = str_to_int(form.port.value(), 5432)
+      match
+        @async.with_timeout_opt(timeout_ms, async fn() {
+          let (conn, connection) = @postgres.PgConn::connect(
+            form.host.value(),
+            port,
+            form.database.value(),
+            form.username.value(),
+            form.password.value(),
+            form.tls_enabled,
+            self.group,
+          ) catch {
+            err => return Err(err.to_string())
+          }
+          self.group.spawn_bg(
+            async fn() { connection.run() },
+            allow_failure=true,
+          )
+          Ok(conn)
+        }) {
+        Some(Ok(conn)) => Ok(conn)
+        Some(Err(msg)) => Err(msg)
+        None =>
+          Err(
+            "Connection timed out after \{parse_connect_timeout_secs(form.connect_timeout_secs.value())}s",
+          )
+      }
     }
     _ => {
+      if form.tls_enabled || has_custom_cert_paths(form) {
+        return {
+          ..self,
+          conn_form: {
+            ..form,
+            error: "MySQL TLS is not supported by the current driver",
+          },
+        }
+      }
       let port = str_to_int(form.port.value(), 3306)
-      Ok(
-        @moon_mysql_db.MoonMysqlConn::connect(
-          form.host.value(),
-          port,
-          form.database.value(),
-          form.username.value(),
-          form.password.value(),
-          self.group,
-        ),
-      ) catch {
-        e => Err(e.to_string())
+      match
+        @async.with_timeout_opt(timeout_ms, async fn() {
+          Ok(
+            @moon_mysql_db.MoonMysqlConn::connect(
+              form.host.value(),
+              port,
+              form.database.value(),
+              form.username.value(),
+              form.password.value(),
+              self.group,
+            ),
+          ) catch {
+            e => Err(e.to_string())
+          }
+        }) {
+        Some(Ok(conn)) => Ok(conn)
+        Some(Err(msg)) => Err(msg)
+        None =>
+          Err(
+            "Connection timed out after \{parse_connect_timeout_secs(form.connect_timeout_secs.value())}s",
+          )
       }
     }
   }
@@ -561,6 +661,11 @@ pub fn AppState::disconnect(self : AppState) -> AppState {
     conn_panel,
     schema_tree: @widget.Tree::new([]),
     results: @widget.Table::new([], []),
+    search_input: None,
+    search_matches: [],
+    search_match_index: 0,
+    search_editing: false,
+    file_prompt: None,
     running_query: None,
     cancel_requested: false,
     conn_lost: false,
@@ -579,6 +684,27 @@ pub fn AppState::export_results_csv(self : AppState) -> AppState {
     Ok(path) => { ..self, status: "Exported CSV to \{path}", show_error: false }
     Err(msg) => { ..self, status: "Error: \{msg}", show_error: false }
   }
+}
+
+///|
+pub fn AppState::export_results_json(self : AppState) -> AppState {
+  if self.results.columns.length() == 0 {
+    return { ..self, status: "No results to export", show_error: false }
+  }
+  match @config.export_results_json(self.results.columns, self.results.rows) {
+    Ok(path) =>
+      { ..self, status: "Exported JSON to \{path}", show_error: false }
+    Err(msg) => { ..self, status: "Error: \{msg}", show_error: false }
+  }
+}
+
+///|
+pub fn AppState::load_sql_file(
+  self : AppState,
+  path : String,
+) -> Result[String, String] {
+  let _ = self
+  @config.read_text_file(path)
 }
 
 ///|
@@ -888,7 +1014,7 @@ pub fn AppState::selected_schema_table(self : AppState) -> String? {
 /// `term_cols` and `term_rows` are the current terminal dimensions.
 /// Computes the panel's outer area from the layout geometry and delegates to
 /// `Tree::handle_click`, which toggles expandable nodes and selects leaves.
-pub fn AppState::handle_schema_click(
+pub async fn AppState::handle_schema_click(
   self : AppState,
   mx : Int,
   my : Int,
@@ -902,7 +1028,12 @@ pub fn AppState::handle_schema_click(
   //   Column 1..schema_w : schema panel (schema_width_percent of total width)
   let schema_w = term_cols * schema_width_percent / 100
   let schema_area = @layout.Rect::new(1, 2, schema_w, term_rows - 2)
-  { ..self, schema_tree: self.schema_tree.handle_click(mx, my, schema_area) }
+  let clicked_tree = self.schema_tree.handle_click(mx, my, schema_area)
+  if should_lazy_expand(self.schema_tree, clicked_tree) {
+    do_lazy_expand_schema_selection({ ..self, schema_tree: clicked_tree })
+  } else {
+    { ..self, schema_tree: clicked_tree }
+  }
 }
 
 ///|
@@ -932,6 +1063,119 @@ pub fn connect_status(panel : ConnPanel) -> String {
     ProfileList => "Tab=switch  Enter=load  Ctrl+S=save  d=delete  q=quit"
     Form => "Tab=switch  Enter=connect  Ctrl+S=save  Ctrl+Q=quit"
   }
+}
+
+///|
+fn should_lazy_expand(before : @widget.Tree, after : @widget.Tree) -> Bool {
+  match (before.selected_item(), after.selected_item()) {
+    (Some(prev), Some(next)) =>
+      next.depth == 2 && next.expandable && next.expanded && !prev.expanded
+    _ => false
+  }
+}
+
+///|
+async fn do_lazy_expand_schema_selection(state : AppState) -> AppState {
+  match (state.conn, state.schema_tree.selected_item()) {
+    (Some(conn), Some(item)) =>
+      match schema_item_kind_and_name(item) {
+        Some((kind, name)) =>
+          match load_schema_children(conn, kind, name) {
+            Ok(children) =>
+              {
+                ..state,
+                schema_tree: state.schema_tree.replace_selected_children(
+                  children,
+                ),
+                status: "Loaded schema details for \{name}",
+                show_error: false,
+              }
+            Err(msg) => { ..state, status: "Error: \{msg}", show_error: false }
+          }
+        None => state
+      }
+    _ => state
+  }
+}
+
+///|
+fn schema_item_kind_and_name(item : @widget.TreeItem) -> (String, String)? {
+  if item.depth != 2 || item.data == "" {
+    return None
+  }
+  if item.data.has_prefix("table:") {
+    return Some(("table", item.data[6:].to_string()))
+  }
+  if item.data.has_prefix("view:") {
+    return Some(("view", item.data[5:].to_string()))
+  }
+  None
+}
+
+///|
+async fn load_schema_children(
+  conn : &@db.DbConn,
+  kind : String,
+  name : String,
+) -> Result[Array[@widget.TreeItem], String] {
+  let items : Array[@widget.TreeItem] = []
+  let columns = match conn.columns(name) {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  for col in columns {
+    items.push(
+      @widget.TreeItem::leaf("\{col.name} : \{col.col_type}", 3, col.name),
+    )
+  }
+  if kind == "table" {
+    let indexes = match conn.indexes(name) {
+      Ok(v) => v
+      Err(e) => return Err(e)
+    }
+    for index_name in indexes {
+      items.push(@widget.TreeItem::leaf("INDEX \{index_name}", 3, index_name))
+    }
+    let triggers = match conn.triggers(name) {
+      Ok(v) => v
+      Err(e) => return Err(e)
+    }
+    for trigger_name in triggers {
+      items.push(
+        @widget.TreeItem::leaf("TRIGGER \{trigger_name}", 3, trigger_name),
+      )
+    }
+  }
+  Ok(items)
+}
+
+///|
+pub async fn AppState::lazy_expand_schema_selection(
+  self : AppState,
+) -> AppState {
+  do_lazy_expand_schema_selection(self)
+}
+
+///|
+fn connect_timeout_millis(value : String) -> Int {
+  parse_connect_timeout_secs(value) * 1000
+}
+
+///|
+fn parse_connect_timeout_secs(value : String) -> Int {
+  let parsed = str_to_int(value, 10)
+  if parsed > 0 {
+    parsed
+  } else {
+    10
+  }
+}
+
+///|
+fn has_custom_cert_paths(form : ConnForm) -> Bool {
+  form.ca_cert_path.value() != "" ||
+  form.client_cert_path.value() != "" ||
+  form.client_key_path.value() != ""
 }
 
 ///|

@@ -149,6 +149,47 @@ pub fn MoonMysqlConn::columns(
 }
 
 ///|
+pub fn MoonMysqlConn::indexes(
+  self : MoonMysqlConn,
+  table : String,
+) -> Result[Array[String], String] {
+  match
+    self.query(
+      "SELECT DISTINCT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=database() AND TABLE_NAME='\{table}' ORDER BY INDEX_NAME",
+    ) {
+    Ok(r) => Ok(@db.first_column(r.rows))
+    Err(e) => Err(e)
+  }
+}
+
+///|
+pub fn MoonMysqlConn::triggers(
+  self : MoonMysqlConn,
+  table : String,
+) -> Result[Array[String], String] {
+  match
+    self.query(
+      "SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE EVENT_OBJECT_SCHEMA=database() AND EVENT_OBJECT_TABLE='\{table}' ORDER BY TRIGGER_NAME",
+    ) {
+    Ok(r) => Ok(@db.first_column(r.rows))
+    Err(e) => Err(e)
+  }
+}
+
+///|
+pub fn MoonMysqlConn::routines(
+  self : MoonMysqlConn,
+) -> Result[Array[String], String] {
+  match
+    self.query(
+      "SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA=database() ORDER BY ROUTINE_NAME",
+    ) {
+    Ok(r) => Ok(@db.first_column(r.rows))
+    Err(e) => Err(e)
+  }
+}
+
+///|
 pub impl @db.DbConn for MoonMysqlConn with async_start(self, sql) {
   self.async_start(sql)
 }
@@ -181,6 +222,21 @@ pub impl @db.DbConn for MoonMysqlConn with views(self) {
 ///|
 pub impl @db.DbConn for MoonMysqlConn with columns(self, table) {
   self.columns(table)
+}
+
+///|
+pub impl @db.DbConn for MoonMysqlConn with indexes(self, table) {
+  self.indexes(table)
+}
+
+///|
+pub impl @db.DbConn for MoonMysqlConn with triggers(self, table) {
+  self.triggers(table)
+}
+
+///|
+pub impl @db.DbConn for MoonMysqlConn with routines(self) {
+  self.routines()
 }
 
 ///|

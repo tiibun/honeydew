@@ -18,10 +18,13 @@ pub fn SqliteConn::async_result(Self, Bool) -> Result[@db.QueryResult, String]
 pub fn SqliteConn::async_start(Self, String) -> Bool
 pub fn SqliteConn::close(Self) -> Unit
 pub fn SqliteConn::columns(Self, String) -> Result[Array[@db.ColumnInfo], String]
+pub fn SqliteConn::indexes(Self, String) -> Result[Array[String], String]
 pub fn SqliteConn::interrupt(Self) -> Unit
 pub fn SqliteConn::open(String) -> Result[Self, String]
 pub fn SqliteConn::query(Self, String) -> Result[@db.QueryResult, String]
+pub fn SqliteConn::routines(Self) -> Result[Array[String], String]
 pub fn SqliteConn::tables(Self) -> Result[Array[String], String]
+pub fn SqliteConn::triggers(Self, String) -> Result[Array[String], String]
 pub fn SqliteConn::views(Self) -> Result[Array[String], String]
 pub impl @db.DbConn for SqliteConn
 

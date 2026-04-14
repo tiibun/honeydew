@@ -8,6 +8,8 @@ pub fn copy_to_clipboard(String) -> Result[Unit, String]
 
 pub fn export_results_csv(Array[String], Array[Array[String]]) -> Result[String, String]
 
+pub fn export_results_json(Array[String], Array[Array[String]]) -> Result[String, String]
+
 pub fn keyring_available() -> Bool
 
 pub fn keyring_delete(String) -> Unit
@@ -18,7 +20,11 @@ pub fn keyring_set(String, String) -> Unit
 
 pub fn load_profiles() -> Array[ConnProfile]
 
+pub fn read_text_file(String) -> Result[String, String]
+
 pub fn save_profiles(Array[ConnProfile]) -> Unit
+
+pub fn write_text_file(String, String) -> Result[Unit, String]
 
 // Errors
 
@@ -30,6 +36,11 @@ pub(all) struct ConnProfile {
   port : Int
   database : String
   username : String
+  tls_enabled : Bool
+  ca_cert_path : String
+  client_cert_path : String
+  client_key_path : String
+  connect_timeout_secs : Int
 }
 
 // Type aliases
