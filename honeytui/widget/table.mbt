@@ -139,12 +139,7 @@ pub fn Table::handle_click(
   if my <= inner.y || my >= inner.y + inner.height {
     return self
   }
-  let row_area_h = inner.height - 1
-  let row_offset = if self.selected_row >= self.row_offset + row_area_h {
-    self.selected_row - row_area_h + 1
-  } else {
-    self.row_offset
-  }
+  let row_offset = self.row_offset
   let row_idx = row_offset + (my - inner.y - 1)
   if row_idx < 0 || row_idx >= self.rows.length() {
     return self

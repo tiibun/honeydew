@@ -23,12 +23,13 @@ pub fn export_results_csv(
 pub fn export_results_json(
   columns : Array[String],
   rows : Array[Array[String]],
+  null_sentinel : String,
 ) -> Result[String, String] {
   if columns.length() == 0 {
     return Err("No results to export")
   }
   let path = "\{config_dir()}/exports/results.json"
-  let content = build_json(columns, rows)
+  let content = build_json(columns, rows, null_sentinel)
   match write_text_file(path, content) {
     Ok(_) => Ok(path)
     Err(msg) => Err(msg)
@@ -76,7 +77,11 @@ fn build_csv(columns : Array[String], rows : Array[Array[String]]) -> String {
 }
 
 ///|
-fn build_json(columns : Array[String], rows : Array[Array[String]]) -> String {
+fn build_json(
+  columns : Array[String],
+  rows : Array[Array[String]],
+  null_sentinel : String,
+) -> String {
   let sb = StringBuilder::new()
   sb.write_char('[')
   for row_idx, row in rows {
@@ -91,7 +96,11 @@ fn build_json(columns : Array[String], rows : Array[Array[String]]) -> String {
       json_write_str(column, sb)
       sb.write_char(':')
       let value = if col_idx < row.length() { row[col_idx] } else { "" }
-      json_write_str(value, sb)
+      if null_sentinel != "" && value == null_sentinel {
+        sb.write_string("null")
+      } else {
+        json_write_str(value, sb)
+      }
     }
     sb.write_char('}')
   }

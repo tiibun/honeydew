@@ -34,13 +34,26 @@ test "export_results_csv writes CSV to the export path" {
 ///|
 test "export_results_json writes JSON to the export path" {
   let path = "\{config_dir()}/exports/results.json"
-  let result = export_results_json(["id", "name"], [["1", "Ada"]])
+  let result = export_results_json(["id", "name"], [["1", "Ada"]], "")
   assert_eq(result, Ok(path))
   let content = match read_text_file(path) {
     Ok(text) => text
     Err(e) => fail("read_text_file failed: \{e}")
   }
   assert_eq(content, "[{\"id\":\"1\",\"name\":\"Ada\"}]")
+}
+
+///|
+test "export_results_json renders NULL as JSON null" {
+  let path = "\{config_dir()}/exports/results.json"
+  let sentinel = "\u0000"
+  let result = export_results_json(["id", "val"], [["1", sentinel]], sentinel)
+  assert_eq(result, Ok(path))
+  let content = match read_text_file(path) {
+    Ok(text) => text
+    Err(e) => fail("read_text_file failed: \{e}")
+  }
+  assert_eq(content, "[{\"id\":\"1\",\"val\":null}]")
 }
 
 ///|

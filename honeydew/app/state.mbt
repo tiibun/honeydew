@@ -691,7 +691,12 @@ pub fn AppState::export_results_json(self : AppState) -> AppState {
   if self.results.columns.length() == 0 {
     return { ..self, status: "No results to export", show_error: false }
   }
-  match @config.export_results_json(self.results.columns, self.results.rows) {
+  match
+    @config.export_results_json(
+      self.results.columns,
+      self.results.rows,
+      @db.null_value,
+    ) {
     Ok(path) =>
       { ..self, status: "Exported JSON to \{path}", show_error: false }
     Err(msg) => { ..self, status: "Error: \{msg}", show_error: false }
