@@ -13,6 +13,7 @@ pub struct Table {
   header_style : @style.Style
   selected_style : @style.Style
   style : @style.Style
+  cell_styles : Array[Array[@style.Style?]]?
 }
 
 ///|
@@ -33,6 +34,7 @@ pub fn Table::new(
     .add_modifier(@style.bold),
     selected_style: @style.Style::default().fg(@style.Black).bg(@style.Cyan),
     style: @style.Style::default(),
+    cell_styles: None,
   }
 }
 
@@ -52,6 +54,14 @@ pub fn Table::selected_style(self : Table, style : @style.Style) -> Table {
 }
 
 ///|
+pub fn Table::with_cell_styles(
+  self : Table,
+  cell_styles : Array[Array[@style.Style?]],
+) -> Table {
+  { ..self, cell_styles: Some(cell_styles) }
+}
+
+///|
 pub fn Table::selected_cell(self : Table) -> String? {
   if self.selected_row < 0 || self.selected_row >= self.rows.length() {
     return None
@@ -61,6 +71,15 @@ pub fn Table::selected_cell(self : Table) -> String? {
     None
   } else {
     Some(row[self.selected_col])
+  }
+}
+
+///|
+pub fn Table::selected_row(self : Table) -> Array[String]? {
+  if self.selected_row < 0 || self.selected_row >= self.rows.length() {
+    None
+  } else {
+    Some(self.rows[self.selected_row])
   }
 }
 
@@ -100,6 +119,59 @@ pub fn Table::handle_key(self : Table, key : @terminal.Key) -> Table {
     Home => { ..self, selected_row: 0, row_offset: 0 }
     End => { ..self, selected_row: if nrows > 0 { nrows - 1 } else { 0 } }
     _ => self
+  }
+}
+
+///|
+pub fn Table::handle_click(
+  self : Table,
+  mx : Int,
+  my : Int,
+  area : @layout.Rect,
+) -> Table {
+  let inner = match self.block {
+    Some(_) => area.inner(1)
+    None => area
+  }
+  if inner.width == 0 || inner.height <= 1 {
+    return self
+  }
+  if my <= inner.y || my >= inner.y + inner.height {
+    return self
+  }
+  let row_area_h = inner.height - 1
+  let row_offset = if self.selected_row >= self.row_offset + row_area_h {
+    self.selected_row - row_area_h + 1
+  } else {
+    self.row_offset
+  }
+  let row_idx = row_offset + (my - inner.y - 1)
+  if row_idx < 0 || row_idx >= self.rows.length() {
+    return self
+  }
+  let col_offset = adjust_col_offset(
+    self.columns,
+    self.rows,
+    self.col_offset,
+    self.selected_col,
+    inner.width,
+  )
+  let visible_cols = compute_col_widths(
+    self.columns,
+    self.rows,
+    col_offset,
+    inner.width,
+  )
+  match clicked_column(mx, inner.x, visible_cols) {
+    Some(col_idx) =>
+      {
+        ..self,
+        selected_row: row_idx,
+        selected_col: col_idx,
+        row_offset,
+        col_offset,
+      }
+    None => self
   }
 }
 
@@ -145,6 +217,7 @@ pub impl Widget for Table with render(self, area, buf) {
     self.header_style,
     None,
     self.selected_style,
+    None,
   )
   // Data rows (inner.height - 1 rows available after header)
   let row_area_h = inner.height - 1
@@ -176,6 +249,7 @@ pub impl Widget for Table with render(self, area, buf) {
         None
       },
       self.selected_style,
+      row_style_for(self, row_idx),
     )
   }
 }
@@ -268,6 +342,7 @@ fn render_row(
   style : @style.Style,
   selected_col : Int?,
   selected_style : @style.Style,
+  cell_styles : Array[@style.Style?]?,
 ) -> Unit {
   let sep_style = @style.Style::default().fg(@style.BrightBlack)
   let mut cx = x
@@ -288,7 +363,15 @@ fn render_row(
     }
     let cell_style = match selected_col {
       Some(selected) => if col_idx == selected { selected_style } else { style }
-      None => style
+      None =>
+        match cell_styles {
+          Some(styles) if col_idx < styles.length() =>
+            match styles[col_idx] {
+              Some(cell_style) => cell_style
+              None => style
+            }
+          _ => style
+        }
     }
     buf.set_string(cx, y, cell_text, cell_style)
     cx = cx + col_w
@@ -299,4 +382,35 @@ fn render_row(
     cx = cx + 1
   }
   let _ = col_offset
+}
+
+///|
+fn row_style_for(table : Table, row_idx : Int) -> Array[@style.Style?]? {
+  match table.cell_styles {
+    Some(styles) if row_idx < styles.length() => Some(styles[row_idx])
+    _ => None
+  }
+}
+
+///|
+fn clicked_column(
+  mx : Int,
+  start_x : Int,
+  visible_cols : Array[(Int, Int)],
+) -> Int? {
+  let mut cx = start_x
+  for idx = 0; idx < visible_cols.length(); idx = idx + 1 {
+    let (col_idx, col_w) = visible_cols[idx]
+    if idx > 0 {
+      if mx == cx {
+        return None
+      }
+      cx += 1
+    }
+    if mx >= cx && mx < cx + col_w {
+      return Some(col_idx)
+    }
+    cx += col_w
+  }
+  None
 }

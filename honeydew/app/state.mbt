@@ -74,6 +74,15 @@ pub(all) enum Panel {
 } derive(Eq)
 
 ///|
+pub let schema_width_percent : Int = 28
+
+///|
+pub let editor_height_percent : Int = 35
+
+///|
+pub let results_height_percent : Int = 65
+
+///|
 /// Which screen is currently displayed.
 pub(all) enum Screen {
   Connect
@@ -488,7 +497,7 @@ pub async fn AppState::do_connect(self : AppState) -> AppState {
         screen: Main,
         schema_tree: tree,
         focus: Editor,
-        status: "Tab=switch panel  Ctrl+Enter=run  Ctrl+S=export  Ctrl+D=disconnect  Ctrl+Q=quit",
+        status: "Tab=switch panel  Ctrl+Enter=run  Ctrl+X=EXPLAIN  Ctrl+S=export  Ctrl+D=disconnect  Ctrl+Q=quit",
       }
     }
     Err(msg) => { ..self, conn_form: { ..form, error: msg } }
@@ -855,6 +864,19 @@ pub fn AppState::copy_selected_result_cell(self : AppState) -> AppState {
 }
 
 ///|
+pub fn AppState::copy_selected_result_row(self : AppState) -> AppState {
+  match self.results.selected_row() {
+    Some(row) =>
+      match @config.copy_to_clipboard(row.join("\t")) {
+        Ok(_) =>
+          { ..self, status: "Copied row to clipboard", show_error: false }
+        Err(msg) => { ..self, status: "Error: \{msg}", show_error: false }
+      }
+    None => { ..self, status: "No row selected", show_error: false }
+  }
+}
+
+///|
 /// Return the table name of the currently selected schema-tree item,
 /// or None when the selection is on a header node (root or group).
 pub fn AppState::selected_schema_table(self : AppState) -> String? {
@@ -877,10 +899,30 @@ pub fn AppState::handle_schema_click(
   //   Row 1          : menu bar
   //   Row 2..rows-1  : main content
   //   Row rows       : status bar
-  //   Column 1..schema_w : schema panel (28% of total width)
-  let schema_w = term_cols * 28 / 100
+  //   Column 1..schema_w : schema panel (schema_width_percent of total width)
+  let schema_w = term_cols * schema_width_percent / 100
   let schema_area = @layout.Rect::new(1, 2, schema_w, term_rows - 2)
   { ..self, schema_tree: self.schema_tree.handle_click(mx, my, schema_area) }
+}
+
+///|
+pub fn AppState::handle_results_click(
+  self : AppState,
+  mx : Int,
+  my : Int,
+  term_cols : Int,
+  term_rows : Int,
+) -> AppState {
+  let schema_w = term_cols * schema_width_percent / 100
+  let content_h = term_rows - 2
+  let editor_h = content_h * editor_height_percent / 100
+  let results_area = @layout.Rect::new(
+    schema_w + 1,
+    2 + editor_h,
+    term_cols - schema_w,
+    content_h - editor_h,
+  )
+  { ..self, results: self.results.handle_click(mx, my, results_area) }
 }
 
 ///|

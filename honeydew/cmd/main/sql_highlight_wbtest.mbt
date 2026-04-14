@@ -64,3 +64,29 @@ test "sql_highlight_lines keeps block comments across lines" {
   assert_eq(lines[1], [("still */", comment_style)])
   assert_eq(lines[2], [("SELECT", keyword_style)])
 }
+
+///|
+test "sql_highlight_lines treats quoted identifiers as opaque" {
+  let lines = sql_highlight_lines("SELECT \"my;col\", `other;col` FROM t")
+  let keyword_style = sql_keyword_style()
+  let identifier_style = sql_string_style()
+  assert_eq(lines[0], [
+    ("SELECT", keyword_style),
+    (" ", @style.Style::default()),
+    ("\"my;col\"", identifier_style),
+    (", ", @style.Style::default()),
+    ("`other;col`", identifier_style),
+    (" ", @style.Style::default()),
+    ("FROM", keyword_style),
+    (" t", @style.Style::default()),
+  ])
+}
+
+///|
+test "is_sql_keyword recognises extended keywords" {
+  assert_true(is_sql_keyword("with"))
+  assert_true(is_sql_keyword("EXPLAIN"))
+  assert_true(is_sql_keyword("returning"))
+  assert_true(is_sql_keyword("VACUUM"))
+  assert_false(is_sql_keyword("not_a_keyword"))
+}

@@ -2,6 +2,8 @@
 package "tiibun/honeydew/db"
 
 // Values
+pub fn first_column(Array[Array[String]]) -> Array[String]
+
 pub fn fixed_bytes_to_str(FixedArray[Byte], Int) -> String
 
 pub fn is_write_statement(String) -> Bool

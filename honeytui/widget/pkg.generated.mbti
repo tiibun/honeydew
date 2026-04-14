@@ -94,13 +94,17 @@ pub struct Table {
   header_style : @style.Style
   selected_style : @style.Style
   style : @style.Style
+  cell_styles : Array[Array[@style.Style?]]?
 }
 pub fn Table::block(Self, Block) -> Self
+pub fn Table::handle_click(Self, Int, Int, @layout.Rect) -> Self
 pub fn Table::handle_key(Self, @terminal.Key) -> Self
 pub fn Table::header_style(Self, @style.Style) -> Self
 pub fn Table::new(Array[String], Array[Array[String]]) -> Self
 pub fn Table::selected_cell(Self) -> String?
+pub fn Table::selected_row(Self) -> Array[String]?
 pub fn Table::selected_style(Self, @style.Style) -> Self
+pub fn Table::with_cell_styles(Self, Array[Array[@style.Style?]]) -> Self
 pub impl Widget for Table
 
 pub struct TextArea {
@@ -111,6 +115,7 @@ pub struct TextArea {
   highlight : (Int, Int)?
   styled_lines : Array[Array[(String, @style.Style)]]?
   focused : Bool
+  show_line_numbers : Bool
   style : @style.Style
   block : Block?
 }
@@ -123,6 +128,7 @@ pub fn TextArea::focused(Self, Bool) -> Self
 pub fn TextArea::handle_key(Self, @terminal.Key) -> Self
 pub fn TextArea::line_count(Self) -> Int
 pub fn TextArea::new() -> Self
+pub fn TextArea::show_line_numbers(Self, Bool) -> Self
 pub fn TextArea::style(Self, @style.Style) -> Self
 pub fn TextArea::value(Self) -> String
 pub fn TextArea::with_highlight(Self, Int, Int) -> Self

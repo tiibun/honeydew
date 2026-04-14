@@ -97,6 +97,12 @@ async fn handle_key_idle(
       } else {
         dispatch(state, key)
       }
+    Char('Y') =>
+      if state.screen == @app.Main && state.focus == @app.Results {
+        state.copy_selected_result_row()
+      } else {
+        dispatch(state, key)
+      }
     Char('q') =>
       // 'q' quits only when profile list has focus; in the form it's text input
       if state.screen == @app.Connect && state.conn_panel == @app.ProfileList {
@@ -139,6 +145,12 @@ async fn handle_key_idle(
           } else {
             state
           }
+      }
+    CtrlX =>
+      if state.screen == @app.Main && state.focus == @app.Editor {
+        run_explain_at_cursor(state)
+      } else {
+        state
       }
     F5 =>
       if state.screen == @app.Main && state.focus == @app.Editor {
@@ -246,6 +258,9 @@ async fn handle_key_idle(
             if panel == @app.Schema {
               let s2 = state.handle_schema_click(mx, my, cols, rows)
               { ..s2, focus: @app.Schema }
+            } else if panel == @app.Results {
+              let s2 = state.handle_results_click(mx, my, cols, rows)
+              { ..s2, focus: @app.Results }
             } else {
               { ..state, focus: panel }
             }
@@ -265,6 +280,33 @@ fn display_rows(rows : Array[Array[String]]) -> Array[Array[String]] {
   rows.map(fn(row) {
     row.map(fn(cell) { if cell == @db.null_value { "NULL" } else { cell } })
   })
+}
+
+///|
+fn null_cell_style() -> @style.Style {
+  @style.Style::default().fg(@style.BrightBlack).add_modifier(@style.italic)
+}
+
+///|
+fn result_cell_styles(
+  rows : Array[Array[String]],
+) -> Array[Array[@style.Style?]] {
+  rows.map(fn(row) {
+    row.map(fn(cell) {
+      if cell == @db.null_value {
+        Some(null_cell_style())
+      } else {
+        None
+      }
+    })
+  })
+}
+
+///|
+fn result_table(result : @db.QueryResult) -> @widget.Table {
+  @widget.Table::new(result.columns, display_rows(result.rows)).with_cell_styles(
+    result_cell_styles(result.rows),
+  )
 }
 
 ///|
@@ -346,11 +388,11 @@ fn panel_at(cols : Int, rows : Int, mx : Int, my : Int) -> @app.Panel? {
     return None
   }
   let content_h = rows - 2
-  let schema_w = cols * 28 / 100
+  let schema_w = cols * @app.schema_width_percent / 100
   if mx <= schema_w {
     return Some(@app.Schema)
   }
-  let editor_h = content_h * 35 / 100
+  let editor_h = content_h * @app.editor_height_percent / 100
   if my < 2 + editor_h {
     return Some(@app.Editor)
   }
@@ -362,6 +404,31 @@ fn run_query_at_cursor(state : @app.AppState) -> @app.AppState {
   let text = state.sql_input.value()
   let pos = state.sql_input.cursor_pos()
   let (stmt, _, _) = current_statement(text, pos)
+  start_single_query(state, stmt)
+}
+
+///|
+fn explain_prefix(kind_idx : Int) -> String {
+  if kind_idx == 1 {
+    "EXPLAIN ANALYZE "
+  } else {
+    "EXPLAIN "
+  }
+}
+
+///|
+fn run_explain_at_cursor(state : @app.AppState) -> @app.AppState {
+  let text = state.sql_input.value()
+  let pos = state.sql_input.cursor_pos()
+  let (stmt, _, _) = current_statement(text, pos)
+  if stmt == "" {
+    return state
+  }
+  start_single_query(state, explain_prefix(state.conn_form.kind_idx) + stmt)
+}
+
+///|
+fn start_single_query(state : @app.AppState, stmt : String) -> @app.AppState {
   if stmt == "" {
     return state
   }
@@ -495,7 +562,7 @@ fn finish_single(
           show_error: false,
         }
       } else {
-        let tbl = @widget.Table::new(result.columns, display_rows(result.rows))
+        let tbl = result_table(result)
         let next = {
           ..state,
           results: tbl,
@@ -564,10 +631,7 @@ fn finish_run_all_step(
         show_error: false,
       }
     Ok(result) => {
-      let new_partial = @widget.Table::new(
-        result.columns,
-        display_rows(result.rows),
-      )
+      let new_partial = result_table(result)
       let new_total_rows = total_rows + result.rows.length()
       let mut new_total_affected = total_affected
       let mut new_has_affected = has_affected
@@ -730,13 +794,78 @@ fn is_connection_lost(msg : String) -> Bool {
 fn find_statement_boundaries(text : String) -> Array[Int] {
   let len = text.length()
   let boundaries : Array[Int] = [0]
-  let mut in_quote = false
-  for i = 0; i < len; i = i + 1 {
-    let c = text[i]
-    if c == '\'' {
-      in_quote = !in_quote
-    } else if c == ';' && !in_quote {
-      boundaries.push(i + 1)
+  let mut i = 0
+  let mut mode = Normal
+  while i < len {
+    match mode {
+      Normal =>
+        if starts_with_two(text, i, '-'.to_int(), '-'.to_int()) {
+          mode = LineComment
+          i += 2
+        } else if starts_with_two(text, i, '/'.to_int(), '*'.to_int()) {
+          mode = BlockComment
+          i += 2
+        } else if text[i] == '\'' {
+          mode = StringLiteral
+          i += 1
+        } else if text[i] == '"' {
+          mode = DoubleQuotedIdentifier
+          i += 1
+        } else if text[i] == '`' {
+          mode = BacktickIdentifier
+          i += 1
+        } else {
+          if text[i] == ';' {
+            boundaries.push(i + 1)
+          }
+          i += 1
+        }
+      StringLiteral =>
+        if text[i] == '\'' {
+          if i + 1 < len && text[i + 1] == '\'' {
+            i += 2
+          } else {
+            mode = Normal
+            i += 1
+          }
+        } else {
+          i += 1
+        }
+      DoubleQuotedIdentifier =>
+        if text[i] == '"' {
+          if i + 1 < len && text[i + 1] == '"' {
+            i += 2
+          } else {
+            mode = Normal
+            i += 1
+          }
+        } else {
+          i += 1
+        }
+      BacktickIdentifier =>
+        if text[i] == '`' {
+          if i + 1 < len && text[i + 1] == '`' {
+            i += 2
+          } else {
+            mode = Normal
+            i += 1
+          }
+        } else {
+          i += 1
+        }
+      BlockComment =>
+        if starts_with_two(text, i, '*'.to_int(), '/'.to_int()) {
+          mode = Normal
+          i += 2
+        } else {
+          i += 1
+        }
+      LineComment => {
+        if text[i] == '\n' {
+          mode = Normal
+        }
+        i += 1
+      }
     }
   }
   boundaries.push(len)

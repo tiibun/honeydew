@@ -143,10 +143,7 @@ pub fn MoonMysqlConn::columns(
     self.query(
       "SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_NAME='\{table}' ORDER BY ORDINAL_POSITION",
     ) {
-    Ok(r) =>
-      Ok(
-        r.rows.map(fn(row) { { name: row[0], col_type: row[1] } }),
-      )
+    Ok(r) => Ok(r.rows.map(fn(row) { { name: row[0], col_type: row[1] } }))
     Err(e) => Err(e)
   }
 }

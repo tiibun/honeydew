@@ -110,6 +110,7 @@ pub fn render_help_overlay(
       [
         ("Tab", "switch panel"),
         ("Ctrl+Enter", "run statement at cursor"),
+        ("Ctrl+X", "run EXPLAIN for statement at cursor"),
         ("F5", "run all statements"),
         ("Ctrl+C", "cancel running query"),
         ("Ctrl+S", "export results as CSV"),
@@ -120,6 +121,7 @@ pub fn render_help_overlay(
         ("Ctrl+R", "ROLLBACK transaction"),
         ("↑ / ↓", "navigate; editor recalls history at top/bottom"),
         ("y", "copy selected result cell"),
+        ("Y", "copy selected result row"),
         ("Space / Enter", "expand/collapse (objects)"),
         ("← / →", "collapse / expand (objects)"),
         ("Ctrl+E", "show full error details"),

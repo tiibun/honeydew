@@ -1,0 +1,36 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tiibun/honeydew/db/moon_mysql"
+
+import {
+  "moonbitlang/async",
+  "tiibun/honeydew/db",
+  "tiibun/moon_mysql/connection",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct MoonMysqlConn {
+  conn : @connection.Connection
+  group : @async.TaskGroup[Unit]
+  mut running_task : @async.Task[Result[@db.QueryResult, String]]?
+  mut last_result : Result[@db.QueryResult, String]?
+}
+pub fn MoonMysqlConn::async_cancel(Self) -> Unit
+pub fn MoonMysqlConn::async_poll(Self) -> Int
+pub fn MoonMysqlConn::async_result(Self, Bool) -> Result[@db.QueryResult, String]
+pub fn MoonMysqlConn::async_start(Self, String) -> Bool
+pub fn MoonMysqlConn::close(Self) -> Unit
+pub fn MoonMysqlConn::columns(Self, String) -> Result[Array[@db.ColumnInfo], String]
+pub fn MoonMysqlConn::connect(String, Int, String, String, String, @async.TaskGroup[Unit]) -> Self raise
+pub fn MoonMysqlConn::query(Self, String) -> Result[@db.QueryResult, String]
+pub fn MoonMysqlConn::tables(Self) -> Result[Array[String], String]
+pub fn MoonMysqlConn::views(Self) -> Result[Array[String], String]
+pub impl @db.DbConn for MoonMysqlConn
+
+// Type aliases
+
+// Traits
+

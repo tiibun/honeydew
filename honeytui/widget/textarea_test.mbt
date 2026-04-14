@@ -21,3 +21,15 @@ test "TextArea renders styled segments" {
   assert_eq(buf.get(8, 1).symbol, "'")
   assert_eq(buf.get(8, 1).style, string_style)
 }
+
+///|
+test "TextArea renders line numbers when enabled" {
+  let area = @layout.Rect::new(1, 1, 8, 2)
+  let buf = @buffer.Buffer::new(area)
+  let ta = @widget.TextArea::new().with_value("a\nbb").show_line_numbers(true)
+  ta.render(area, buf)
+  assert_eq(buf.get(1, 1).symbol, "1")
+  assert_eq(buf.get(3, 1).symbol, "a")
+  assert_eq(buf.get(1, 2).symbol, "2")
+  assert_eq(buf.get(3, 2).symbol, "b")
+}

@@ -2,7 +2,10 @@
 enum SqlHighlightMode {
   Normal
   StringLiteral
+  DoubleQuotedIdentifier
+  BacktickIdentifier
   BlockComment
+  LineComment
 }
 
 ///|
@@ -53,6 +56,26 @@ fn highlight_sql_line(
         i = end
         current_mode = if closed { Normal } else { StringLiteral }
       }
+      DoubleQuotedIdentifier => {
+        let (end, closed) = scan_quoted_token(line, i, '"')
+        push_styled_segment(
+          segments,
+          line[i:end].to_string(),
+          sql_string_style(),
+        )
+        i = end
+        current_mode = if closed { Normal } else { DoubleQuotedIdentifier }
+      }
+      BacktickIdentifier => {
+        let (end, closed) = scan_quoted_token(line, i, '`')
+        push_styled_segment(
+          segments,
+          line[i:end].to_string(),
+          sql_string_style(),
+        )
+        i = end
+        current_mode = if closed { Normal } else { BacktickIdentifier }
+      }
       BlockComment => {
         let (end, closed) = scan_block_comment(line, i)
         push_styled_segment(
@@ -62,6 +85,11 @@ fn highlight_sql_line(
         )
         i = end
         current_mode = if closed { Normal } else { BlockComment }
+      }
+      LineComment => {
+        push_styled_segment(segments, line[i:].to_string(), sql_comment_style())
+        i = len
+        current_mode = Normal
       }
       Normal =>
         if starts_with_two(line, i, '-'.to_int(), '-'.to_int()) {
@@ -89,6 +117,24 @@ fn highlight_sql_line(
           )
           i = end
           current_mode = if closed { Normal } else { StringLiteral }
+        } else if line[i].to_int() == '"'.to_int() {
+          let (end, closed) = scan_quoted_token(line, i, '"')
+          push_styled_segment(
+            segments,
+            line[i:end].to_string(),
+            sql_string_style(),
+          )
+          i = end
+          current_mode = if closed { Normal } else { DoubleQuotedIdentifier }
+        } else if line[i].to_int() == '`'.to_int() {
+          let (end, closed) = scan_quoted_token(line, i, '`')
+          push_styled_segment(
+            segments,
+            line[i:end].to_string(),
+            sql_string_style(),
+          )
+          i = end
+          current_mode = if closed { Normal } else { BacktickIdentifier }
         } else if is_ident_start(line, i) {
           let end = scan_ident(line, i)
           let word = line[i:end].to_string()
@@ -141,6 +187,8 @@ fn starts_highlight_token(line : String, idx : Int) -> Bool {
   starts_with_two(line, idx, '-'.to_int(), '-'.to_int()) ||
   starts_with_two(line, idx, '/'.to_int(), '*'.to_int()) ||
   line[idx].to_int() == '\''.to_int() ||
+  line[idx].to_int() == '"'.to_int() ||
+  line[idx].to_int() == '`'.to_int() ||
   is_ident_start(line, idx)
 }
 
@@ -153,11 +201,16 @@ fn starts_with_two(line : String, idx : Int, a : Int, b : Int) -> Bool {
 
 ///|
 fn scan_string_literal(line : String, start : Int) -> (Int, Bool) {
+  scan_quoted_token(line, start, '\'')
+}
+
+///|
+fn scan_quoted_token(line : String, start : Int, quote : Char) -> (Int, Bool) {
   let len = line.length()
   let mut i = start + 1
   while i < len {
-    if line[i].to_int() == '\''.to_int() {
-      if i + 1 < len && line[i + 1].to_int() == '\''.to_int() {
+    if line[i].to_int() == quote.to_int() {
+      if i + 1 < len && line[i + 1].to_int() == quote.to_int() {
         i += 2
       } else {
         return (i + 1, true)
@@ -243,7 +296,52 @@ fn is_sql_keyword(word : String) -> Bool {
     | "BEGIN"
     | "COMMIT"
     | "ROLLBACK"
-    | "DISTINCT" => true
+    | "DISTINCT"
+    | "WITH"
+    | "UNION"
+    | "ALL"
+    | "EXCEPT"
+    | "INTERSECT"
+    | "CASE"
+    | "WHEN"
+    | "THEN"
+    | "ELSE"
+    | "END"
+    | "EXISTS"
+    | "IN"
+    | "LIKE"
+    | "ILIKE"
+    | "BETWEEN"
+    | "IS"
+    | "TRUE"
+    | "FALSE"
+    | "TRANSACTION"
+    | "INDEX"
+    | "CONSTRAINT"
+    | "PRIMARY"
+    | "FOREIGN"
+    | "KEY"
+    | "REFERENCES"
+    | "DEFAULT"
+    | "UNIQUE"
+    | "CROSS"
+    | "FULL"
+    | "USING"
+    | "RETURNING"
+    | "OVER"
+    | "PARTITION"
+    | "WINDOW"
+    | "CAST"
+    | "COALESCE"
+    | "NULLIF"
+    | "TRUNCATE"
+    | "EXPLAIN"
+    | "ANALYZE"
+    | "VACUUM"
+    | "GRANT"
+    | "REVOKE"
+    | "SAVEPOINT"
+    | "RELEASE" => true
     _ => false
   }
 }

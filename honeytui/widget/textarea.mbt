@@ -15,6 +15,7 @@ pub struct TextArea {
   /// Optional styled segments for each line.
   styled_lines : Array[Array[(String, @style.Style)]]?
   focused : Bool
+  show_line_numbers : Bool
   style : @style.Style
   block : Block?
 }
@@ -29,6 +30,7 @@ pub fn TextArea::new() -> TextArea {
     highlight: None,
     styled_lines: None,
     focused: false,
+    show_line_numbers: false,
     style: @style.Style::default(),
     block: None,
   }
@@ -60,6 +62,14 @@ pub fn TextArea::block(self : TextArea, block : Block) -> TextArea {
 ///|
 pub fn TextArea::focused(self : TextArea, focused : Bool) -> TextArea {
   { ..self, focused, }
+}
+
+///|
+pub fn TextArea::show_line_numbers(
+  self : TextArea,
+  show_line_numbers : Bool,
+) -> TextArea {
+  { ..self, show_line_numbers, }
 }
 
 ///|
@@ -303,15 +313,36 @@ pub impl Widget for TextArea with render(self, area, buf) {
   if inner.width == 0 || inner.height == 0 {
     return
   }
+  let gutter_width = if self.show_line_numbers {
+    digit_count(self.lines.length()) + 1
+  } else {
+    0
+  }
+  if gutter_width >= inner.width {
+    return
+  }
+  let text_x = inner.x + gutter_width
+  let text_width = inner.width - gutter_width
   let height = inner.height
   // Ensure scroll keeps cursor visible
   let scroll_top = clamp_scroll(self.scroll_top, self.cursor_line, height)
   let visible_lines = min(self.lines.length() - scroll_top, height)
   let hl_style = @style.Style::default().bg(@style.Yellow).fg(@style.Black)
+  let gutter_style = @style.Style::default().fg(@style.BrightBlack)
   for row = 0; row < visible_lines; row = row + 1 {
     let line_idx = scroll_top + row
     let line = self.lines[line_idx]
     let y = inner.y + row
+    if self.show_line_numbers {
+      let number = "\{line_idx + 1}"
+      let pad = gutter_width - number.length()
+      let gutter_text = if pad > 0 {
+        "\{String::make(pad - 1, ' ')}\{number} "
+      } else {
+        number
+      }
+      buf.set_string(inner.x, y, gutter_text, gutter_style)
+    }
     let is_highlighted = match self.highlight {
       Some((s, e)) => line_idx >= s && line_idx <= e
       None => false
@@ -322,9 +353,9 @@ pub impl Widget for TextArea with render(self, area, buf) {
         if line_idx < styled_lines.length() {
           render_segments(
             buf,
-            inner.x,
+            text_x,
             y,
-            inner.width,
+            text_width,
             styled_lines[line_idx],
             line_style,
             is_highlighted,
@@ -332,9 +363,9 @@ pub impl Widget for TextArea with render(self, area, buf) {
         } else {
           render_segments(
             buf,
-            inner.x,
+            text_x,
             y,
-            inner.width,
+            text_width,
             [(line, line_style)],
             line_style,
             false,
@@ -343,9 +374,9 @@ pub impl Widget for TextArea with render(self, area, buf) {
       None =>
         render_segments(
           buf,
-          inner.x,
+          text_x,
           y,
-          inner.width,
+          text_width,
           [(line, line_style)],
           line_style,
           false,
@@ -360,8 +391,8 @@ pub impl Widget for TextArea with render(self, area, buf) {
       let cursor_cols = @buffer.str_display_width(
         line[:self.cursor_col].to_string(),
       )
-      let cx = inner.x + cursor_cols
-      if cx < inner.x + inner.width {
+      let cx = text_x + cursor_cols
+      if cx < text_x + text_width {
         let cursor_char = if self.cursor_col < line.length() {
           line[self.cursor_col:self.cursor_col + 1].to_string()
         } else {
@@ -378,6 +409,17 @@ pub impl Widget for TextArea with render(self, area, buf) {
       }
     }
   }
+}
+
+///|
+fn digit_count(n : Int) -> Int {
+  let mut digits = 1
+  let mut value = if n > 0 { n } else { 1 }
+  while value >= 10 {
+    value /= 10
+    digits += 1
+  }
+  digits
 }
 
 ///|

@@ -34,9 +34,13 @@ test "Key::from_bytes - special keys" {
 test "Key::from_bytes - control keys" {
   assert_eq(@terminal.Key::from_bytes([3]), CtrlC)
   assert_eq(@terminal.Key::from_bytes([4]), CtrlD)
+  assert_eq(@terminal.Key::from_bytes([6]), CtrlF)
+  assert_eq(@terminal.Key::from_bytes([15]), CtrlO)
   assert_eq(@terminal.Key::from_bytes([12]), CtrlL)
   assert_eq(@terminal.Key::from_bytes([17]), CtrlQ)
   assert_eq(@terminal.Key::from_bytes([19]), CtrlS)
+  assert_eq(@terminal.Key::from_bytes([24]), CtrlX)
+  assert_eq(@terminal.Key::from_bytes([25]), CtrlY)
   assert_eq(@terminal.Key::from_bytes([26]), CtrlZ)
 }
 

@@ -4,12 +4,12 @@
 /// Skipped automatically when the database is unavailable.
 
 ///|
-fn try_connect(
-  group : @async.TaskGroup[Unit],
-) -> @moon_mysql.MoonMysqlConn? {
-  try Some(@moon_mysql.MoonMysqlConn::connect(
-    "127.0.0.1", 3306, "testdb", "testuser", "testpass", group,
-  )) catch {
+fn try_connect(group : @async.TaskGroup[Unit]) -> @moon_mysql.MoonMysqlConn? {
+  Some(
+    @moon_mysql.MoonMysqlConn::connect(
+      "127.0.0.1", 3306, "testdb", "testuser", "testpass", group,
+    ),
+  ) catch {
     _ => None
   }
 }

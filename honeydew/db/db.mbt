@@ -50,7 +50,12 @@ pub fn is_write_statement(sql : String) -> Bool {
   let trimmed = sql.trim_start().to_string().to_upper()
   starts_with_keyword(trimmed, "INSERT") ||
   starts_with_keyword(trimmed, "UPDATE") ||
-  starts_with_keyword(trimmed, "DELETE")
+  starts_with_keyword(trimmed, "DELETE") ||
+  starts_with_keyword(trimmed, "CREATE") ||
+  starts_with_keyword(trimmed, "DROP") ||
+  starts_with_keyword(trimmed, "ALTER") ||
+  starts_with_keyword(trimmed, "TRUNCATE") ||
+  starts_with_keyword(trimmed, "REPLACE")
 }
 
 ///|

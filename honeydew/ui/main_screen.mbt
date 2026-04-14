@@ -23,13 +23,13 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   let status_area = content_rows[1]
   // Split main area horizontally: schema (28%) | right (72%)
   let cols = @layout.Layout::new(@layout.Horizontal, [
-    @layout.Percentage(28),
-    @layout.Percentage(72),
+    @layout.Percentage(@app.schema_width_percent),
+    @layout.Percentage(100 - @app.schema_width_percent),
   ]).split(main_area)
   // Right side: editor (35%) | results (65%)
   let right_rows = @layout.Layout::new(@layout.Vertical, [
-    @layout.Percentage(35),
-    @layout.Percentage(65),
+    @layout.Percentage(@app.editor_height_percent),
+    @layout.Percentage(@app.results_height_percent),
   ]).split(cols[1])
   let schema_area = cols[0]
   let editor_area = right_rows[0]
@@ -55,10 +55,13 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     @style.Style::default().fg(@style.BrightBlack)
   }
   let editor_block = @widget.Block::new()
-    .title(" SQL (Ctrl+Enter=run current  F5=run all) ")
+    .title(" SQL (Ctrl+Enter=run current  Ctrl+X=EXPLAIN  F5=run all) ")
     .borders(@widget.Borders::all())
     .border_style(editor_border_style)
-  let sql_widget = state.sql_input.focused(editor_focused).block(editor_block)
+  let sql_widget = state.sql_input
+    .focused(editor_focused)
+    .show_line_numbers(true)
+    .block(editor_block)
   frame.render_widget(sql_widget, editor_area)
   // ---- Results ----
   let results_focused = state.focus == @app.Results

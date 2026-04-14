@@ -55,11 +55,15 @@ pub(all) enum Key {
   CtrlC
   CtrlD
   CtrlE
+  CtrlF
   CtrlL
   CtrlM
+  CtrlO
   CtrlQ
   CtrlR
   CtrlS
+  CtrlX
+  CtrlY
   CtrlZ
   CtrlEnter
   F5

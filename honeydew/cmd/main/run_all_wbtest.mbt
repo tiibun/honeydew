@@ -32,6 +32,40 @@ test "all_statements ignores semicolon inside single-quoted string" {
 }
 
 ///|
+test "all_statements ignores semicolons inside comments" {
+  inspect(
+    all_statements(
+      (
+        #|-- comment;
+        #|SELECT 1;
+        #|/* keep; together */
+        #|SELECT 2
+        #|
+      ),
+    ),
+    content=(
+      #|["-- comment;\nSELECT 1", "/* keep; together */\nSELECT 2"]
+    ),
+  )
+}
+
+///|
+test "all_statements ignores semicolons inside quoted identifiers" {
+  inspect(
+    all_statements(
+      (
+        #|SELECT "my;col" FROM t;
+        #|SELECT `other;col` FROM t
+        #|
+      ),
+    ),
+    content=(
+      #|["SELECT \"my;col\" FROM t", "SELECT `other;col` FROM t"]
+    ),
+  )
+}
+
+///|
 test "all_statements empty string returns empty array" {
   inspect(
     all_statements(""),

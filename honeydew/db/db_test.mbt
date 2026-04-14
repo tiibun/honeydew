@@ -20,13 +20,16 @@ test "is_write_statement" {
   assert_true(@db.is_write_statement("INSERT INTO t VALUES (1)"))
   assert_true(@db.is_write_statement("UPDATE t SET x=1"))
   assert_true(@db.is_write_statement("DELETE FROM t"))
+  assert_true(@db.is_write_statement("CREATE TABLE t (id INT)"))
+  assert_true(@db.is_write_statement("DROP TABLE t"))
+  assert_true(@db.is_write_statement("ALTER TABLE t ADD COLUMN name TEXT"))
+  assert_true(@db.is_write_statement("TRUNCATE TABLE t"))
+  assert_true(@db.is_write_statement("REPLACE INTO t VALUES (1)"))
   // leading whitespace / mixed case
   assert_true(@db.is_write_statement("  insert into t values (1)"))
   assert_true(@db.is_write_statement("\nUPDATE t SET x=2"))
   // non-writes
   assert_false(@db.is_write_statement("SELECT 1"))
-  assert_false(@db.is_write_statement("CREATE TABLE t (id INT)"))
-  assert_false(@db.is_write_statement("DROP TABLE t"))
   assert_false(@db.is_write_statement(""))
 }
 
