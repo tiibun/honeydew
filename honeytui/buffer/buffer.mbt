@@ -51,9 +51,19 @@ pub fn Buffer::get(self : Buffer, x : Int, y : Int) -> Cell {
 }
 
 ///|
+/// Write `cell` at (x, y).
+/// If the new cell's bg is Default, the existing cell's bg is inherited so
+/// that a background painted by an outer widget (e.g. Block) shows through.
 pub fn Buffer::set(self : Buffer, x : Int, y : Int, cell : Cell) -> Unit {
   match self.index(x, y) {
-    Some(i) => self.cells[i] = cell
+    Some(i) => {
+      let new_style = if cell.style.bg is @style.Default {
+        cell.style.bg(self.cells[i].style.bg)
+      } else {
+        cell.style
+      }
+      self.cells[i] = { ..cell, style: new_style }
+    }
     None => ()
   }
 }

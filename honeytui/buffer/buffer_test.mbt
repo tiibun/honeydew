@@ -71,6 +71,35 @@ test "Buffer diff no changes" {
 }
 
 ///|
+test "Buffer set inherits bg from existing cell when new bg is Default" {
+  let area = @layout.Rect::new(0, 0, 5, 1)
+  let buf = @buffer.Buffer::new(area)
+  // Paint a black background.
+  let bg_style = @style.Style::default().bg(@style.Black)
+  buf.set(0, 0, @buffer.Cell::new(" ", bg_style))
+  // Write text with fg only (bg = Default) — should inherit Black.
+  let fg_style = @style.Style::default().fg(@style.White)
+  buf.set(0, 0, @buffer.Cell::new("A", fg_style))
+  let cell = buf.get(0, 0)
+  assert_eq(cell.symbol, "A")
+  assert_eq(cell.style.fg, @style.White)
+  assert_eq(cell.style.bg, @style.Black)
+}
+
+///|
+test "Buffer set does not inherit bg when new bg is explicit" {
+  let area = @layout.Rect::new(0, 0, 5, 1)
+  let buf = @buffer.Buffer::new(area)
+  buf.set(
+    0,
+    0,
+    @buffer.Cell::new(" ", @style.Style::default().bg(@style.Black)),
+  )
+  buf.set(0, 0, @buffer.Cell::new("A", @style.Style::default().bg(@style.Red)))
+  assert_eq(buf.get(0, 0).style.bg, @style.Red)
+}
+
+///|
 test "Buffer clear resets all cells" {
   let area = @layout.Rect::new(1, 1, 10, 5)
   let buf = @buffer.Buffer::new(area)
