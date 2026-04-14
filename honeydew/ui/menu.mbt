@@ -47,6 +47,7 @@ pub fn render_error_overlay(
     .title_style(
       @style.Style::default().fg(@style.Red).add_modifier(@style.bold),
     )
+    .style(@style.Style::default().bg(@style.Black))
   frame.render_widget(block, overlay_area)
   let inner = overlay_area.inner(1)
   let msg_area = @layout.Rect::new(
@@ -90,10 +91,6 @@ pub fn render_help_overlay(
   state : @app.AppState,
 ) -> Unit {
   let area = frame.size()
-  let overlay_area = @layout.Placement::centered(
-    @layout.AtMost(68),
-    @layout.AtMost(20),
-  ).resolve(area)
   let bindings : Array[(String, String)] = match state.screen {
     @app.Connect =>
       [
@@ -135,6 +132,10 @@ pub fn render_help_overlay(
         ("?", "close this help"),
       ]
   }
+  let overlay_area = @layout.Placement::centered(
+    @layout.AtMost(68),
+    @layout.AtMost(bindings.length() + 2),
+  ).resolve(area)
   let block = @widget.Block::new()
     .title(" Key Bindings ")
     .borders(@widget.Borders::all())
@@ -142,6 +143,7 @@ pub fn render_help_overlay(
     .title_style(
       @style.Style::default().fg(@style.Yellow).add_modifier(@style.bold),
     )
+    .style(@style.Style::default().bg(@style.Black))
   frame.render_widget(block, overlay_area)
   let inner = block.inner(overlay_area)
   // Split into one row per binding, then each row into key/description columns.

@@ -24,6 +24,7 @@ pub struct Block {
   borders : Borders
   border_style : @style.Style
   title_style : @style.Style
+  style : @style.Style
 }
 
 ///|
@@ -33,6 +34,7 @@ pub fn Block::new() -> Block {
     borders: Borders::none(),
     border_style: @style.Style::default(),
     title_style: @style.Style::default(),
+    style: @style.Style::default(),
   }
 }
 
@@ -54,6 +56,12 @@ pub fn Block::border_style(self : Block, style : @style.Style) -> Block {
 ///|
 pub fn Block::title_style(self : Block, style : @style.Style) -> Block {
   { ..self, title_style: style }
+}
+
+///|
+/// Set the background style used to fill the entire block area.
+pub fn Block::style(self : Block, style : @style.Style) -> Block {
+  { ..self, style, }
 }
 
 ///|
@@ -85,6 +93,12 @@ pub fn Block::inner(self : Block, area : @layout.Rect) -> @layout.Rect {
 pub impl Widget for Block with render(self, area, buf) {
   if area.width < 2 || area.height < 2 {
     return
+  }
+  // Fill every cell in the block area with the background style.
+  for row = area.y; row < area.y + area.height; row = row + 1 {
+    for col = area.x; col < area.x + area.width; col = col + 1 {
+      buf.set(col, row, @buffer.Cell::new(" ", self.style))
+    }
   }
   let x0 = area.x
   let y0 = area.y

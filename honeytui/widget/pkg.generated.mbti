@@ -18,11 +18,13 @@ pub struct Block {
   borders : Borders
   border_style : @style.Style
   title_style : @style.Style
+  style : @style.Style
 }
 pub fn Block::border_style(Self, @style.Style) -> Self
 pub fn Block::borders(Self, Borders) -> Self
 pub fn Block::inner(Self, @layout.Rect) -> @layout.Rect
 pub fn Block::new() -> Self
+pub fn Block::style(Self, @style.Style) -> Self
 pub fn Block::title(Self, String) -> Self
 pub fn Block::title_style(Self, @style.Style) -> Self
 pub impl Widget for Block
