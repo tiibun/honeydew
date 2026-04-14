@@ -356,17 +356,20 @@ fn render_row(
       let pad = col_w - display.length()
       "\{display}\{String::make(pad, ' ')}"
     }
-    let cell_style = match selected_col {
-      Some(selected) => if col_idx == selected { selected_style } else { style }
-      None =>
-        match cell_styles {
-          Some(styles) if col_idx < styles.length() =>
-            match styles[col_idx] {
-              Some(cell_style) => cell_style
-              None => style
-            }
-          _ => style
+    // Base style: cell-specific override (e.g. italic for NULL) or row default.
+    let base_style = match cell_styles {
+      Some(styles) if col_idx < styles.length() =>
+        match styles[col_idx] {
+          Some(cs) => cs
+          None => style
         }
+      _ => style
+    }
+    // Selected cell: use selected_style colours but preserve cell modifiers (e.g. italic).
+    let cell_style = match selected_col {
+      Some(selected) if col_idx == selected =>
+        selected_style.add_modifier(base_style.modifiers)
+      _ => base_style
     }
     buf.set_string(cx, y, cell_text, cell_style)
     cx = cx + col_w

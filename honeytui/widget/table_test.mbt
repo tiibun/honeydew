@@ -44,6 +44,21 @@ test "Table renders custom cell styles" {
 }
 
 ///|
+test "Table renders selected NULL cell with italic preserved" {
+  let area = @layout.Rect::new(1, 1, 10, 3)
+  let buf = @buffer.Buffer::new(area)
+  let dim_style = @style.Style::default()
+    .fg(@style.BrightBlack)
+    .add_modifier(@style.italic)
+  let table = @widget.Table::new(["value"], [["NULL"]]).with_cell_styles([
+    [Some(dim_style)],
+  ])
+  table.render(area, buf)
+  let selected_style = @style.Style::default().fg(@style.Black).bg(@style.Cyan)
+  assert_eq(buf.get(1, 2).style, selected_style.add_modifier(@style.italic))
+}
+
+///|
 test "Table::handle_click selects clicked cell" {
   let area = @layout.Rect::new(1, 1, 14, 5)
   let table = @widget.Table::new(["id", "name"], [["1", "Ada"], ["2", "Bob"]]).block(

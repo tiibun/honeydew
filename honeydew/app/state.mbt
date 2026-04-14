@@ -564,7 +564,7 @@ pub async fn AppState::do_connect(self : AppState) -> AppState {
       }
       let port = str_to_int(form.port.value(), 3306)
       match
-        @async.with_timeout_opt(timeout_ms, async fn() {
+        @async.with_timeout_opt(timeout_ms, fn() {
           Ok(
             @moon_mysql_db.MoonMysqlConn::connect(
               form.host.value(),
@@ -1058,7 +1058,7 @@ pub fn AppState::handle_results_click(
     term_cols - schema_w,
     content_h - editor_h,
   )
-  { ..self, results: self.results.handle_click(mx, my, results_area) }
+  { ..self, results: self.results.handle_click(mx, my, results_area.inner(1)) }
 }
 
 ///|
