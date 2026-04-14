@@ -118,18 +118,22 @@ pub(all) struct ConnForm {
 ///|
 pub fn ConnForm::new() -> ConnForm {
   {
-    name: @widget.Input::new(),
+    name: @widget.Input::new().with_placeholder("profile name"),
     kind_idx: 0,
     host: @widget.Input::new().with_value("localhost"),
-    port: @widget.Input::new().with_value(""),
+    port: @widget.Input::new().with_placeholder("port"),
     database: @widget.Input::new().with_value(":memory:"),
-    username: @widget.Input::new().with_value(""),
-    password: @widget.Input::new().with_value(""),
+    username: @widget.Input::new().with_placeholder("username"),
+    password: @widget.Input::new().with_placeholder("leave blank if none"),
     connect_timeout_secs: @widget.Input::new().with_value("10"),
     tls_enabled: false,
-    ca_cert_path: @widget.Input::new().with_value(""),
-    client_cert_path: @widget.Input::new().with_value(""),
-    client_key_path: @widget.Input::new().with_value(""),
+    ca_cert_path: @widget.Input::new().with_placeholder("/path/to/ca.pem"),
+    client_cert_path: @widget.Input::new().with_placeholder(
+      "/path/to/client.pem",
+    ),
+    client_key_path: @widget.Input::new().with_placeholder(
+      "/path/to/client.key",
+    ),
     focus_idx: 1,
     error: "",
   }
@@ -181,13 +185,19 @@ pub fn ConnForm::handle_key(self : ConnForm, key : @terminal.Key) -> ConnForm {
         {
           ..self,
           kind_idx: next_kind,
-          port: @widget.Input::new().with_value(default_port),
+          port: @widget.Input::new()
+          .with_value(default_port)
+          .with_placeholder("port"),
           database: @widget.Input::new().with_value(default_db),
           connect_timeout_secs: @widget.Input::new().with_value("10"),
           tls_enabled: false,
-          ca_cert_path: @widget.Input::new().with_value(""),
-          client_cert_path: @widget.Input::new().with_value(""),
-          client_key_path: @widget.Input::new().with_value(""),
+          ca_cert_path: @widget.Input::new().with_placeholder("/path/to/ca.pem"),
+          client_cert_path: @widget.Input::new().with_placeholder(
+            "/path/to/client.pem",
+          ),
+          client_key_path: @widget.Input::new().with_placeholder(
+            "/path/to/client.key",
+          ),
           error: "",
         }
       } else {
@@ -395,20 +405,32 @@ pub fn AppState::load_selected_profile(self : AppState) -> AppState {
     default_port_str(p.kind_idx)
   }
   let new_form = {
-    name: @widget.Input::new().with_value(p.name),
+    name: @widget.Input::new()
+    .with_value(p.name)
+    .with_placeholder("profile name"),
     kind_idx: p.kind_idx,
     host: @widget.Input::new().with_value(p.host),
-    port: @widget.Input::new().with_value(port_str),
+    port: @widget.Input::new().with_value(port_str).with_placeholder("port"),
     database: @widget.Input::new().with_value(p.database),
-    username: @widget.Input::new().with_value(p.username),
-    password: @widget.Input::new().with_value(password),
+    username: @widget.Input::new()
+    .with_value(p.username)
+    .with_placeholder("username"),
+    password: @widget.Input::new()
+    .with_value(password)
+    .with_placeholder("leave blank if none"),
     connect_timeout_secs: @widget.Input::new().with_value(
       p.connect_timeout_secs.to_string(),
     ),
     tls_enabled: p.tls_enabled,
-    ca_cert_path: @widget.Input::new().with_value(p.ca_cert_path),
-    client_cert_path: @widget.Input::new().with_value(p.client_cert_path),
-    client_key_path: @widget.Input::new().with_value(p.client_key_path),
+    ca_cert_path: @widget.Input::new()
+    .with_value(p.ca_cert_path)
+    .with_placeholder("/path/to/ca.pem"),
+    client_cert_path: @widget.Input::new()
+    .with_value(p.client_cert_path)
+    .with_placeholder("/path/to/client.pem"),
+    client_key_path: @widget.Input::new()
+    .with_value(p.client_key_path)
+    .with_placeholder("/path/to/client.key"),
     focus_idx: 2,
     error: "",
   }

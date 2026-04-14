@@ -12,6 +12,8 @@ pub struct Input {
   focused : Bool
   /// When true, the value is displayed as asterisks (password mode).
   mask : Bool
+  /// Hint text shown when the value is empty.
+  placeholder : String
 }
 
 ///|
@@ -23,6 +25,7 @@ pub fn Input::new() -> Input {
     block: None,
     focused: false,
     mask: false,
+    placeholder: "",
   }
 }
 
@@ -50,6 +53,12 @@ pub fn Input::focused(self : Input, focused : Bool) -> Input {
 /// Enable or disable password masking (displays `*` in place of actual characters).
 pub fn Input::masked(self : Input, mask : Bool) -> Input {
   { ..self, mask, }
+}
+
+///|
+/// Set hint text shown when the input is empty.
+pub fn Input::with_placeholder(self : Input, placeholder : String) -> Input {
+  { ..self, placeholder, }
 }
 
 ///|
@@ -109,6 +118,24 @@ pub impl Widget for Input with render(self, area, buf) {
     return
   }
   let width = inner.width
+  // Show placeholder when the value is empty.
+  if self.value == "" && self.placeholder != "" {
+    let ph_style = @style.Style::default().fg(@style.BrightBlack)
+    let ph = if @buffer.str_display_width(self.placeholder) <= width {
+      self.placeholder
+    } else {
+      @buffer.truncate_to_width(self.placeholder, width)
+    }
+    buf.set_string(inner.x, inner.y, ph, ph_style)
+    // Still render cursor block when focused
+    if self.focused {
+      let cursor_style = @style.Style::default()
+        .fg(@style.Black)
+        .bg(@style.White)
+      buf.set(inner.x, inner.y, @buffer.Cell::new(" ", cursor_style))
+    }
+    return
+  }
   // Build the display value (masked or plain).
   let dv = if self.mask {
     let sb = StringBuilder::new()
