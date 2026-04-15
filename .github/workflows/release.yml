@@ -38,7 +38,7 @@ jobs:
       ARCHIVE_BASENAME: honeydew-${{ github.ref_name }}-${{ matrix.asset_os }}-${{ matrix.asset_arch }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
 
@@ -112,7 +112,7 @@ jobs:
 
       # Upload artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARCHIVE_BASENAME }}
           path: dist/${{ env.ARCHIVE_BASENAME }}.${{ matrix.archive_ext }}
@@ -123,14 +123,14 @@ jobs:
     needs: build
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: honeydew-${{ github.ref_name }}-*
           path: release-assets
           merge-multiple: true
 
       - name: Publish release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
