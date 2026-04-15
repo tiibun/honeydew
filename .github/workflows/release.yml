@@ -72,7 +72,7 @@ jobs:
 
       # Build the native executable
       - name: Build honeydew
-        run: moon build honeydew/cmd/main --target native
+        run: moon build honeydew/cmd/main --target native --release
 
       # Prepare distribution directory and stage files (Unix)
       - name: Stage files (Unix)
