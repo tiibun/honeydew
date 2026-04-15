@@ -1,0 +1,17 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  verify-trigger:
+    name: Verify tag trigger
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo tag
+        run: echo "Preparing release for ${GITHUB_REF_NAME}"
