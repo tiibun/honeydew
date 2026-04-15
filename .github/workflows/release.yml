@@ -9,9 +9,128 @@ permissions:
   contents: write
 
 jobs:
-  verify-trigger:
-    name: Verify tag trigger
-    runs-on: ubuntu-latest
+  build:
+    name: Build ${{ matrix.asset_os }}-${{ matrix.asset_arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            asset_os: linux
+            asset_arch: x64
+            archive_ext: tar.gz
+            binary_name: honeydew
+          - runner: macos-latest
+            asset_os: macos
+            asset_arch: x64
+            archive_ext: tar.gz
+            binary_name: honeydew
+          - runner: windows-latest
+            asset_os: windows
+            asset_arch: x64
+            archive_ext: zip
+            binary_name: honeydew.exe
+
+    env:
+      BUILD_OUTPUT: _build/native/release/build/tiibun/honeydew/cmd/main/main.exe
+      STAGING_DIR: dist/${{ matrix.asset_os }}
+      ARCHIVE_BASENAME: honeydew-${{ github.ref_name }}-${{ matrix.asset_os }}-${{ matrix.asset_arch }}
+
     steps:
-      - name: Echo tag
-        run: echo "Preparing release for ${GITHUB_REF_NAME}"
+      - uses: actions/checkout@v4
+
+      # Unix (Linux and macOS)
+      - name: Set up MoonBit (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+
+      # Windows
+      - name: Set up MoonBit (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+          irm https://cli.moonbitlang.com/install/powershell.ps1 | iex
+          "$env:USERPROFILE\.moon\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      # Update SQLite sources (required before build)
+      - name: Update SQLite amalgamation (Unix)
+        if: runner.os != 'Windows'
+        run: sh scripts/update_sqlite.sh
+
+      - name: Update SQLite amalgamation (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: sh scripts/update_sqlite.sh
+
+      # Update dependencies
+      - name: Update dependencies
+        run: moon update
+
+      # Build the native executable
+      - name: Build honeydew
+        run: moon build honeydew/cmd/main --target native --release
+
+      # Prepare distribution directory and stage files (Unix)
+      - name: Stage files (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p "${{ env.STAGING_DIR }}"
+          cp "${{ env.BUILD_OUTPUT }}" "${{ env.STAGING_DIR }}/${{ matrix.binary_name }}"
+          cp README.md LICENSE "${{ env.STAGING_DIR }}/"
+
+      # Prepare distribution directory and stage files (Windows)
+      - name: Stage files (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:STAGING_DIR"
+          Copy-Item "$env:BUILD_OUTPUT" "$env:STAGING_DIR\${{ matrix.binary_name }}"
+          Copy-Item README.md, LICENSE "$env:STAGING_DIR\"
+
+      # Create tar.gz archive (Linux and macOS)
+      - name: Create archive (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          tar -C dist -czf "dist/${{ env.ARCHIVE_BASENAME }}.${{ matrix.archive_ext }}" "${{ matrix.asset_os }}"
+
+      # Create zip archive (Windows)
+      - name: Create archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "$env:STAGING_DIR" -DestinationPath "dist\${{ env.ARCHIVE_BASENAME }}.${{ matrix.archive_ext }}"
+
+      # Upload artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARCHIVE_BASENAME }}
+          path: dist/${{ env.ARCHIVE_BASENAME }}.${{ matrix.archive_ext }}
+
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: honeydew-${{ github.ref_name }}-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: |
+            Automated release for ${{ github.ref_name }}.
+          files: |
+            release-assets/*.tar.gz
+            release-assets/*.zip
+          fail_on_unmatched_files: true
