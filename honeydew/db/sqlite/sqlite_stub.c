@@ -2,7 +2,26 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
+#ifdef _WIN32
+#  include <windows.h>
+typedef HANDLE pthread_t;
+typedef struct { void *(*fn)(void *); void *arg; } _win_targs;
+static DWORD WINAPI _win_wrap(LPVOID p) {
+    _win_targs *a = (_win_targs *)p; a->fn(a->arg); free(a); return 0;
+}
+static int pthread_create(pthread_t *t, void *attr, void *(*fn)(void *), void *arg) {
+    (void)attr;
+    _win_targs *a = (_win_targs *)malloc(sizeof(_win_targs));
+    if (!a) return -1;
+    a->fn = fn; a->arg = arg;
+    *t = CreateThread(NULL, 0, _win_wrap, a, 0, NULL);
+    if (!*t) { free(a); return -1; }
+    return 0;
+}
+static void pthread_detach(pthread_t t) { CloseHandle(t); }
+#else
+#  include <pthread.h>
+#endif
 
 #define MAX_CONNS  8
 #define MAX_STMTS  16
