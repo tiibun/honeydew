@@ -5,3 +5,4 @@ _build/
 .worktrees/
 honeydew/db/sqlite/sqlite3.c
 honeydew/db/sqlite/sqlite3.h
+docs/book/

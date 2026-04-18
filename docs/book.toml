@@ -1,0 +1,12 @@
+[book]
+title = "honeydew User Manual"
+authors = []
+language = "en"
+src = "src"
+
+[build]
+build-dir = "book"
+
+[output.html]
+git-repository-url = "https://github.com/tiibun/honeydew"
+edit-url-template = "https://github.com/tiibun/honeydew/edit/main/docs/{path}"
