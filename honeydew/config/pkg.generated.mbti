@@ -18,9 +18,13 @@ pub fn keyring_get(String) -> String
 
 pub fn keyring_set(String, String) -> Unit
 
+pub fn load_param_snapshots() -> Array[ParamSnapshot]
+
 pub fn load_profiles() -> Array[ConnProfile]
 
 pub fn read_text_file(String) -> Result[String, String]
+
+pub fn save_param_snapshots(Array[ParamSnapshot]) -> Unit
 
 pub fn save_profiles(Array[ConnProfile]) -> Unit
 
@@ -41,6 +45,11 @@ pub(all) struct ConnProfile {
   client_cert_path : String
   client_key_path : String
   connect_timeout_secs : Int
+}
+
+pub(all) struct ParamSnapshot {
+  name : String
+  entries : Array[(String, String)]
 }
 
 // Type aliases

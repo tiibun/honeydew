@@ -32,6 +32,8 @@ pub fn render_menu_bar(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
 ///|
 /// Render a centered overlay for parameterized-query input.
 /// Shows one labeled Input field per placeholder extracted from the SQL.
+/// When in save-preset mode, an extra name-input row is shown at the bottom.
+/// When in pick-preset mode, the overlay is replaced with a snapshot list.
 pub fn render_param_query_overlay(
   frame : @honeytui.Frame,
   state : @app.AppState,
@@ -42,13 +44,35 @@ pub fn render_param_query_overlay(
   }
   let area = frame.size()
   let n = form.labels.length()
-  // Height: 2 (borders) + n fields + 1 hint row
+  let is_pick_mode = state.param_snap_pick_idx is Some(_)
+  let is_save_mode = state.param_snap_name is Some(_)
+  // Overlay height depends on current mode
+  let overlay_h = if is_pick_mode {
+    let m = state.param_snapshots.length()
+    let h = m + 3 // m list rows + 2 borders + 1 hint inside
+    if h > 22 {
+      22
+    } else if h < 5 {
+      5
+    } else {
+      h
+    }
+  } else if is_save_mode {
+    n + 4 // n fields + 2 borders + 1 name-input + 1 hint
+  } else {
+    n + 3 // n fields + 2 borders + 1 hint
+  }
+  let title = if is_pick_mode {
+    " Load Preset "
+  } else {
+    " Run with Parameters "
+  }
   let overlay_area = @layout.Placement::centered(
     @layout.AtMost(64),
-    @layout.AtMost(n + 3),
+    @layout.AtMost(overlay_h),
   ).resolve(area)
   let block = @widget.Block::new()
-    .title(" Run with Parameters ")
+    .title(title)
     .borders(@widget.Borders::all())
     .border_style(@style.Style::default().fg(@style.Cyan))
     .title_style(
@@ -60,6 +84,11 @@ pub fn render_param_query_overlay(
   if inner.height == 0 || inner.width == 0 {
     return
   }
+  // Pick mode: replace form content with snapshot list
+  if is_pick_mode {
+    render_snap_pick_list(frame, state, inner)
+    return
+  }
   // Compute label column width from the longest label (minimum 6)
   let mut max_label_len = 6
   for label in form.labels {
@@ -67,10 +96,16 @@ pub fn render_param_query_overlay(
       max_label_len = label.length()
     }
   }
-  // label_col: label + 1 leading space + 1 trailing space
   let label_col_width = max_label_len + 2
+  // Reserve rows for hint (always) + name input (save mode)
+  let bottom_reserved = if is_save_mode { 2 } else { 1 }
+  let avail_field_rows = if inner.height > bottom_reserved {
+    inner.height - bottom_reserved
+  } else {
+    0
+  }
+  let field_rows = if n < avail_field_rows { n } else { avail_field_rows }
   // Render each field row
-  let field_rows = if n < inner.height { n } else { inner.height - 1 }
   for i = 0; i < field_rows; i = i + 1 {
     let row_area = @layout.Rect::new(inner.x, inner.y + i, inner.width, 1)
     let row_cols = @layout.Layout::new(@layout.Horizontal, [
@@ -92,14 +127,90 @@ pub fn render_param_query_overlay(
       row_cols[1],
     )
   }
+  // Name-input row (save mode only)
+  if is_save_mode && inner.height >= 2 {
+    let name_y = inner.y + inner.height - 2
+    let name_area = @layout.Rect::new(inner.x, name_y, inner.width, 1)
+    let name_cols = @layout.Layout::new(@layout.Horizontal, [
+      @layout.Length(7),
+      @layout.Min(0),
+    ]).split(name_area)
+    frame.render_widget(
+      @widget.Paragraph::new("Name: ").style(
+        @style.Style::default().fg(@style.Cyan),
+      ),
+      name_cols[0],
+    )
+    match state.param_snap_name {
+      Some(input) => frame.render_widget(input.focused(true), name_cols[1])
+      None => ()
+    }
+  }
   // Hint row at the bottom of the inner area
   if inner.height > 0 {
     let hint_y = inner.y + inner.height - 1
     let hint_area = @layout.Rect::new(inner.x, hint_y, inner.width, 1)
+    let hint = if is_save_mode {
+      " Enter=save preset  Esc=cancel"
+    } else {
+      " Tab=next  Enter=run  Ctrl+S=save preset  Ctrl+P=presets  Esc=cancel"
+    }
     frame.render_widget(
-      @widget.Paragraph::new(
-        " Tab=next  Shift+Tab=prev  Enter=run  Esc=cancel  (values substituted as-is)",
-      ).style(@style.Style::default().fg(@style.BrightBlack)),
+      @widget.Paragraph::new(hint).style(
+        @style.Style::default().fg(@style.BrightBlack),
+      ),
+      hint_area,
+    )
+  }
+}
+
+///|
+/// Render the snapshot list inside the param overlay (pick mode).
+fn render_snap_pick_list(
+  frame : @honeytui.Frame,
+  state : @app.AppState,
+  inner : @layout.Rect,
+) -> Unit {
+  let selected_idx = match state.param_snap_pick_idx {
+    Some(i) => i
+    None => 0
+  }
+  let m = state.param_snapshots.length()
+  let visible_rows = if inner.height > 1 { inner.height - 1 } else { 0 }
+  // Scroll offset: keep the selected item centred in the viewport
+  let scroll_start = if m <= visible_rows {
+    0
+  } else {
+    let half = visible_rows / 2
+    let ideal = if selected_idx > half { selected_idx - half } else { 0 }
+    if ideal + visible_rows > m {
+      m - visible_rows
+    } else {
+      ideal
+    }
+  }
+  for i = 0; i < visible_rows && scroll_start + i < m; i = i + 1 {
+    let snap_idx = scroll_start + i
+    let row_area = @layout.Rect::new(inner.x, inner.y + i, inner.width, 1)
+    let snap = state.param_snapshots[snap_idx]
+    let style = if snap_idx == selected_idx {
+      @style.Style::default().fg(@style.Black).bg(@style.Cyan)
+    } else {
+      @style.Style::default().fg(@style.White)
+    }
+    frame.render_widget(
+      @widget.Paragraph::new(" " + snap.name).style(style),
+      row_area,
+    )
+  }
+  // Hint row
+  if inner.height > 0 {
+    let hint_y = inner.y + inner.height - 1
+    let hint_area = @layout.Rect::new(inner.x, hint_y, inner.width, 1)
+    frame.render_widget(
+      @widget.Paragraph::new(" ↑↓=navigate  Enter=load preset  Esc=cancel").style(
+        @style.Style::default().fg(@style.BrightBlack),
+      ),
       hint_area,
     )
   }

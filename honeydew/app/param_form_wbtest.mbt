@@ -245,6 +245,53 @@ test "save_to_history: updates existing entries" {
   assert_eq(v1, "other")
 }
 
+// ── apply_snapshot tests ──────────────────────────────────────────────────────
+
+///|
+test "apply_snapshot: applies matching entries and leaves others unchanged" {
+  let sql = "SELECT :id, :name, :limit"
+  let form = ParamForm::new(sql, parse_placeholders(sql))
+  // Pre-fill :limit so we can verify it stays unchanged
+  let form = {
+    ..form,
+    fields: [
+      @widget.Input::new().with_value(""),
+      @widget.Input::new().with_value(""),
+      @widget.Input::new().with_value("50"),
+    ],
+  }
+  let snap : @config.ParamSnapshot = {
+    name: "test",
+    entries: [(":id", "99"), (":name", "Eve")],
+  }
+  let applied = form.apply_snapshot(snap)
+  assert_eq(applied.fields[0].value(), "99")
+  assert_eq(applied.fields[1].value(), "Eve")
+  assert_eq(applied.fields[2].value(), "50") // unchanged
+}
+
+///|
+test "apply_snapshot: unknown snapshot labels are silently ignored" {
+  let sql = "SELECT :x"
+  let form = ParamForm::new(sql, parse_placeholders(sql))
+  let snap : @config.ParamSnapshot = {
+    name: "misc",
+    entries: [(":y", "foo"), (":z", "bar")],
+  }
+  let applied = form.apply_snapshot(snap)
+  assert_eq(applied.fields[0].value(), "") // :x not in snapshot → unchanged
+}
+
+///|
+test "apply_snapshot: overwrites existing field values" {
+  let sql = "SELECT :x"
+  let form = ParamForm::new(sql, parse_placeholders(sql))
+  let form = { ..form, fields: [@widget.Input::new().with_value("old")] }
+  let snap : @config.ParamSnapshot = { name: "snap", entries: [(":x", "new")] }
+  let applied = form.apply_snapshot(snap)
+  assert_eq(applied.fields[0].value(), "new")
+}
+
 ///|
 test "round-trip: save then restore values" {
   let sql = "SELECT * FROM orders WHERE user_id = :user_id AND status = :status"

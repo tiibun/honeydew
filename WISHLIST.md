@@ -27,7 +27,7 @@ Items marked `[ ]` are not yet implemented.
   Remember previously entered values per placeholder name so the user can
   quickly re-run with the same inputs.
 
-- [ ] **Named parameter sets (snapshots)**
+- [x] **Named parameter sets (snapshots)**
   Let the user save a set of placeholder values under a name (e.g. "staging-user")
   and recall it from a list, similar to saved connection profiles.
 

@@ -849,6 +849,15 @@ fn handle_param_query_key(
   state : @app.AppState,
   key : @terminal.Key,
 ) -> @app.AppState {
+  // Sub-mode: user is typing a snapshot name to save
+  if state.param_snap_name is Some(_) {
+    return handle_snap_save_key(state, key)
+  }
+  // Sub-mode: user is browsing the snapshot pick list
+  if state.param_snap_pick_idx is Some(_) {
+    return handle_snap_pick_key(state, key)
+  }
+  // Normal param form editing
   match key {
     Esc =>
       {
@@ -869,11 +878,132 @@ fn handle_param_query_key(
         }
         None => state
       }
+    CtrlS =>
+      {
+        ..state,
+        param_snap_name: Some(@widget.Input::new().focused(true)),
+        status: "Type a preset name and press Enter to save",
+        show_error: false,
+      }
+    CtrlP =>
+      if state.param_snapshots.length() == 0 {
+        {
+          ..state,
+          status: "No saved presets yet — use Ctrl+S to save one",
+          show_error: false,
+        }
+      } else {
+        {
+          ..state,
+          param_snap_pick_idx: Some(0),
+          status: "↑↓=navigate  Enter=load preset  Esc=cancel",
+          show_error: false,
+        }
+      }
     _ =>
       match state.param_query_form {
         Some(form) => { ..state, param_query_form: Some(form.handle_key(key)) }
         None => state
       }
+  }
+}
+
+///|
+fn handle_snap_save_key(
+  state : @app.AppState,
+  key : @terminal.Key,
+) -> @app.AppState {
+  let param_hint = "Enter placeholder values — Tab=next field  Enter=run  Esc=cancel"
+  match key {
+    Esc =>
+      { ..state, param_snap_name: None, status: param_hint, show_error: false }
+    Enter =>
+      match state.param_snap_name {
+        Some(name_input) => {
+          let snap_name = name_input.value().trim().to_string()
+          if snap_name == "" {
+            return {
+              ..state,
+              param_snap_name: None,
+              status: param_hint,
+              show_error: false,
+            }
+          }
+          match state.param_query_form {
+            Some(form) => {
+              let entries = form.save_to_history([])
+              let new_state = state.upsert_param_snapshot(snap_name, entries)
+              {
+                ..new_state,
+                param_snap_name: None,
+                status: "Preset \"\{snap_name}\" saved — \{param_hint}",
+                show_error: false,
+              }
+            }
+            None => { ..state, param_snap_name: None, status: param_hint }
+          }
+        }
+        None => state
+      }
+    _ =>
+      match state.param_snap_name {
+        Some(input) =>
+          {
+            ..state,
+            param_snap_name: Some(input.handle_key(key).focused(true)),
+          }
+        None => state
+      }
+  }
+}
+
+///|
+fn handle_snap_pick_key(
+  state : @app.AppState,
+  key : @terminal.Key,
+) -> @app.AppState {
+  let param_hint = "Enter placeholder values — Tab=next field  Enter=run  Esc=cancel"
+  let n = state.param_snapshots.length()
+  match key {
+    Esc =>
+      {
+        ..state,
+        param_snap_pick_idx: None,
+        status: param_hint,
+        show_error: false,
+      }
+    Up =>
+      match state.param_snap_pick_idx {
+        Some(idx) => {
+          let new_idx = if idx > 0 { idx - 1 } else { n - 1 }
+          { ..state, param_snap_pick_idx: Some(new_idx) }
+        }
+        None => state
+      }
+    Down =>
+      match state.param_snap_pick_idx {
+        Some(idx) => {
+          let new_idx = if idx + 1 < n { idx + 1 } else { 0 }
+          { ..state, param_snap_pick_idx: Some(new_idx) }
+        }
+        None => state
+      }
+    Enter =>
+      match (state.param_snap_pick_idx, state.param_query_form) {
+        (Some(idx), Some(form)) if idx < n => {
+          let snap = state.param_snapshots[idx]
+          let new_form = form.apply_snapshot(snap)
+          {
+            ..state,
+            param_query_form: Some(new_form),
+            param_snap_pick_idx: None,
+            status: "Preset \"\{snap.name}\" loaded — \{param_hint}",
+            show_error: false,
+          }
+        }
+        _ => { ..state, param_snap_pick_idx: None, status: param_hint }
+      }
+    _ => state
   }
 }
 

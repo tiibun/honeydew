@@ -198,6 +198,126 @@ fn json_write_str(s : String, sb : StringBuilder) -> Unit {
   sb.write_char('"')
 }
 
+// ── Named parameter snapshots ─────────────────────────────────────────────────
+
+///|
+/// A saved set of placeholder values, identified by a user-chosen name.
+pub(all) struct ParamSnapshot {
+  name : String
+  entries : Array[(String, String)]
+}
+
+///|
+/// Load saved parameter snapshots from $HOME/.config/honeydew/param_snapshots.json.
+pub fn load_param_snapshots() -> Array[ParamSnapshot] {
+  let dir = config_dir()
+  let path = "\{dir}/param_snapshots.json"
+  let path_b = str_to_bytes(path)
+  let buf : FixedArray[Byte] = FixedArray::make(65536, b'\x00')
+  let n = hd_file_read(path_b, path_b.length(), buf, buf.length())
+  if n <= 0 {
+    return []
+  }
+  let content = fixed_bytes_to_str(buf, n)
+  parse_param_snapshots(content)
+}
+
+///|
+/// Persist parameter snapshots to $HOME/.config/honeydew/param_snapshots.json.
+pub fn save_param_snapshots(snapshots : Array[ParamSnapshot]) -> Unit {
+  let dir = config_dir()
+  let dir_b = str_to_bytes(dir)
+  hd_mkdir_p(dir_b, dir_b.length()) |> ignore
+  let path = "\{dir}/param_snapshots.json"
+  let json = param_snapshots_to_json(snapshots)
+  let path_b = str_to_bytes(path)
+  let json_b = str_to_bytes(json)
+  hd_file_write(path_b, path_b.length(), json_b, json_b.length()) |> ignore
+}
+
+///|
+fn parse_param_snapshots(content : String) -> Array[ParamSnapshot] {
+  try {
+    match @json.parse(content) {
+      Array(items) => {
+        let result : Array[ParamSnapshot] = []
+        for item in items {
+          match parse_param_snapshot_json(item) {
+            Some(s) => result.push(s)
+            None => ()
+          }
+        }
+        result
+      }
+      _ => []
+    }
+  } catch {
+    _ => []
+  }
+}
+
+///|
+fn parse_param_snapshot_json(json : Json) -> ParamSnapshot? {
+  match json {
+    Object(obj) => {
+      let name = match obj.get("name") {
+        Some(String(s)) => s
+        _ => return None
+      }
+      let entries : Array[(String, String)] = []
+      match obj.get("entries") {
+        Some(Array(pairs)) =>
+          for pair in pairs {
+            match pair {
+              Array(kv) if kv.length() == 2 =>
+                match (kv[0], kv[1]) {
+                  (String(k), String(v)) => entries.push((k, v))
+                  _ => ()
+                }
+              _ => ()
+            }
+          }
+        _ => ()
+      }
+      Some({ name, entries })
+    }
+    _ => None
+  }
+}
+
+///|
+fn param_snapshots_to_json(snapshots : Array[ParamSnapshot]) -> String {
+  let sb = StringBuilder::new()
+  sb.write_char('[')
+  for i = 0; i < snapshots.length(); i = i + 1 {
+    if i > 0 {
+      sb.write_char(',')
+    }
+    param_snapshot_to_json(snapshots[i], sb)
+  }
+  sb.write_char(']')
+  sb.to_string()
+}
+
+///|
+fn param_snapshot_to_json(snap : ParamSnapshot, sb : StringBuilder) -> Unit {
+  sb.write_string("{\"name\":")
+  json_write_str(snap.name, sb)
+  sb.write_string(",\"entries\":[")
+  for i = 0; i < snap.entries.length(); i = i + 1 {
+    if i > 0 {
+      sb.write_char(',')
+    }
+    let (k, v) = snap.entries[i]
+    sb.write_char('[')
+    json_write_str(k, sb)
+    sb.write_char(',')
+    json_write_str(v, sb)
+    sb.write_char(']')
+  }
+  sb.write_string("]}")
+}
+
 ///|
 /// Encode a MoonBit String to UTF-8 Bytes.
 fn str_to_bytes(s : String) -> Bytes {

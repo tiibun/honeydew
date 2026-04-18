@@ -305,6 +305,12 @@ pub(all) struct AppState {
   param_query_form : ParamForm?
   /// Previously entered values per placeholder label, for pre-filling the form.
   param_history : Array[(String, String)]
+  /// Persisted named parameter sets (snapshots).
+  param_snapshots : Array[@config.ParamSnapshot]
+  /// Input widget for the "save snapshot" name prompt (active while user types a name).
+  param_snap_name : @widget.Input?
+  /// Selected index in the snapshot pick list (active while user browses snapshots).
+  param_snap_pick_idx : Int?
   focus : Panel
   status : String
   should_quit : Bool
@@ -348,6 +354,9 @@ pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
     file_prompt: None,
     param_query_form: None,
     param_history: [],
+    param_snapshots: @config.load_param_snapshots(),
+    param_snap_name: None,
+    param_snap_pick_idx: None,
     focus: Editor,
     status: connect_status(
       if profiles.length() > 0 {
@@ -694,6 +703,8 @@ pub fn AppState::disconnect(self : AppState) -> AppState {
     search_editing: false,
     file_prompt: None,
     param_query_form: None,
+    param_snap_name: None,
+    param_snap_pick_idx: None,
     running_query: None,
     cancel_requested: false,
     conn_lost: false,
@@ -1227,6 +1238,36 @@ fn default_port_int(kind_idx : Int) -> Int {
     2 => 3306
     _ => 0
   }
+}
+
+///|
+/// Save (or overwrite) a named parameter snapshot and persist to disk.
+pub fn AppState::upsert_param_snapshot(
+  self : AppState,
+  name : String,
+  entries : Array[(String, String)],
+) -> AppState {
+  let snap : @config.ParamSnapshot = { name, entries }
+  let new_snaps = upsert_snapshot_array(self.param_snapshots, snap)
+  @config.save_param_snapshots(new_snaps)
+  { ..self, param_snapshots: new_snaps }
+}
+
+///|
+fn upsert_snapshot_array(
+  snapshots : Array[@config.ParamSnapshot],
+  snap : @config.ParamSnapshot,
+) -> Array[@config.ParamSnapshot] {
+  for i = 0; i < snapshots.length(); i = i + 1 {
+    if snapshots[i].name == snap.name {
+      let new_snaps = snapshots.copy()
+      new_snaps[i] = snap
+      return new_snaps
+    }
+  }
+  let new_snaps = snapshots.copy()
+  new_snaps.push(snap)
+  new_snaps
 }
 
 ///|

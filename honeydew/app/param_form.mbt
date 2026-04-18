@@ -348,6 +348,40 @@ pub fn ParamForm::save_to_history(
   h
 }
 
+// ── Snapshot apply ────────────────────────────────────────────────────────────
+
+///|
+/// Apply matching entries from a snapshot to this form's fields.
+/// Only labels that appear in both the form and the snapshot are updated;
+/// other form fields are left unchanged.
+pub fn ParamForm::apply_snapshot(
+  self : ParamForm,
+  snap : @config.ParamSnapshot,
+) -> ParamForm {
+  let new_fields = self.fields.copy()
+  for i = 0; i < self.labels.length(); i = i + 1 {
+    match snap_find_entry(snap.entries, self.labels[i]) {
+      Some(v) => new_fields[i] = new_fields[i].with_value(v)
+      None => ()
+    }
+  }
+  { ..self, fields: new_fields }
+}
+
+///|
+fn snap_find_entry(
+  entries : Array[(String, String)],
+  label : String,
+) -> String? {
+  for i = 0; i < entries.length(); i = i + 1 {
+    let (k, v) = entries[i]
+    if k == label {
+      return Some(v)
+    }
+  }
+  None
+}
+
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 ///|

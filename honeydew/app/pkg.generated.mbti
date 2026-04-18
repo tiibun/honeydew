@@ -52,6 +52,9 @@ pub(all) struct AppState {
   file_prompt : @widget.Input?
   param_query_form : ParamForm?
   param_history : Array[(String, String)]
+  param_snapshots : Array[@config.ParamSnapshot]
+  param_snap_name : @widget.Input?
+  param_snap_pick_idx : Int?
   focus : Panel
   status : String
   should_quit : Bool
@@ -92,6 +95,7 @@ pub async fn AppState::rollback_transaction(Self) -> Self
 pub fn AppState::save_current_profile(Self) -> Self
 pub fn AppState::selected_schema_table(Self) -> String?
 pub fn AppState::sync_txn_flag_for_stmt(Self, String) -> Self
+pub fn AppState::upsert_param_snapshot(Self, String, Array[(String, String)]) -> Self
 
 pub(all) struct ConnForm {
   name : @widget.Input
@@ -139,6 +143,7 @@ pub(all) struct ParamForm {
   fields : Array[@widget.Input]
   focus_idx : Int
 }
+pub fn ParamForm::apply_snapshot(Self, @config.ParamSnapshot) -> Self
 pub fn ParamForm::handle_key(Self, @terminal.Key) -> Self
 pub fn ParamForm::new(String, Array[String]) -> Self
 pub fn ParamForm::save_to_history(Self, Array[(String, String)]) -> Array[(String, String)]
