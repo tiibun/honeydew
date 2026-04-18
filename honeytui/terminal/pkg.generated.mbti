@@ -67,6 +67,7 @@ pub(all) enum Key {
   CtrlY
   CtrlZ
   CtrlEnter
+  F1
   F5
   MouseClick(Int, Int)
   Unknown(Array[Int])

@@ -17,6 +17,8 @@ pub fn render_main(@honeytui.Frame, @app.AppState) -> Unit
 
 pub fn render_menu_bar(@honeytui.Frame, @app.AppState) -> Unit
 
+pub fn render_param_query_overlay(@honeytui.Frame, @app.AppState) -> Unit
+
 // Errors
 
 // Types and methods

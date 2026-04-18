@@ -17,6 +17,8 @@ pub fn connect_status(ConnPanel) -> String
 
 pub let editor_height_percent : Int
 
+pub fn parse_placeholders(String) -> Array[String]
+
 pub let results_height_percent : Int
 
 pub let schema_width_percent : Int
@@ -48,6 +50,7 @@ pub(all) struct AppState {
   search_match_index : Int
   search_editing : Bool
   file_prompt : @widget.Input?
+  param_query_form : ParamForm?
   focus : Panel
   status : String
   should_quit : Bool
@@ -127,6 +130,16 @@ pub(all) enum Panel {
   Editor
   Results
 } derive(Eq)
+
+pub(all) struct ParamForm {
+  original_sql : String
+  labels : Array[String]
+  fields : Array[@widget.Input]
+  focus_idx : Int
+}
+pub fn ParamForm::handle_key(Self, @terminal.Key) -> Self
+pub fn ParamForm::new(String, Array[String]) -> Self
+pub fn ParamForm::substituted_sql(Self) -> String
 
 pub(all) enum RunningQuery {
   Single(sql~ : String, started~ : @bench.Timestamp)

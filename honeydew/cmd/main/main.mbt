@@ -89,6 +89,9 @@ async fn handle_key_idle(
   state : @app.AppState,
   key : @terminal.Key,
 ) -> @app.AppState {
+  if state.screen == @app.Main && state.param_query_form is Some(_) {
+    return handle_param_query_key(state, key)
+  }
   if state.screen == @app.Main &&
     state.focus == @app.Editor &&
     state.file_prompt is Some(_) {
@@ -108,7 +111,7 @@ async fn handle_key_idle(
     }
   }
   match key {
-    Char('?') => { ..state, show_help: true }
+    F1 => { ..state, show_help: true }
     Char('y') =>
       if state.screen == @app.Main && state.focus == @app.Results {
         state.copy_selected_result_cell()
@@ -817,7 +820,57 @@ fn run_query_at_cursor(state : @app.AppState) -> @app.AppState {
   let text = state.sql_input.value()
   let pos = state.sql_input.cursor_pos()
   let (stmt, _, _) = current_statement(text, pos)
-  start_single_query(state, stmt)
+  if stmt == "" {
+    return state
+  }
+  let placeholders = @app.parse_placeholders(stmt)
+  if placeholders.length() > 0 {
+    open_param_query_form(state, @app.ParamForm::new(stmt, placeholders))
+  } else {
+    start_single_query(state, stmt)
+  }
+}
+
+///|
+fn open_param_query_form(
+  state : @app.AppState,
+  form : @app.ParamForm,
+) -> @app.AppState {
+  {
+    ..state,
+    param_query_form: Some(form),
+    status: "Enter placeholder values — Tab=next field  Enter=run  Esc=cancel",
+    show_error: false,
+  }
+}
+
+///|
+fn handle_param_query_key(
+  state : @app.AppState,
+  key : @terminal.Key,
+) -> @app.AppState {
+  match key {
+    Esc =>
+      {
+        ..state,
+        param_query_form: None,
+        status: "Parameterized query canceled",
+        show_error: false,
+      }
+    Enter =>
+      match state.param_query_form {
+        Some(form) => {
+          let substituted = form.substituted_sql()
+          start_single_query({ ..state, param_query_form: None }, substituted)
+        }
+        None => state
+      }
+    _ =>
+      match state.param_query_form {
+        Some(form) => { ..state, param_query_form: Some(form.handle_key(key)) }
+        None => state
+      }
+  }
 }
 
 ///|
@@ -837,7 +890,15 @@ fn run_explain_at_cursor(state : @app.AppState) -> @app.AppState {
   if stmt == "" {
     return state
   }
-  start_single_query(state, explain_prefix(state.conn_form.kind_idx) + stmt)
+  let placeholders = @app.parse_placeholders(stmt)
+  if placeholders.length() > 0 {
+    let form = @app.ParamForm::new(stmt, placeholders).with_sql_prefix(
+      explain_prefix(state.conn_form.kind_idx),
+    )
+    open_param_query_form(state, form)
+  } else {
+    start_single_query(state, explain_prefix(state.conn_form.kind_idx) + stmt)
+  }
 }
 
 ///|

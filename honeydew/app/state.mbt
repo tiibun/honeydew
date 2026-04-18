@@ -302,6 +302,7 @@ pub(all) struct AppState {
   search_match_index : Int
   search_editing : Bool
   file_prompt : @widget.Input?
+  param_query_form : ParamForm?
   focus : Panel
   status : String
   should_quit : Bool
@@ -343,6 +344,7 @@ pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
     search_match_index: 0,
     search_editing: false,
     file_prompt: None,
+    param_query_form: None,
     focus: Editor,
     status: connect_status(
       if profiles.length() > 0 {
@@ -688,6 +690,7 @@ pub fn AppState::disconnect(self : AppState) -> AppState {
     search_match_index: 0,
     search_editing: false,
     file_prompt: None,
+    param_query_form: None,
     running_query: None,
     cancel_requested: false,
     conn_lost: false,

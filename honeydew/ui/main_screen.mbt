@@ -170,6 +170,9 @@ pub fn render_main(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     @widget.Paragraph::new(status_text).style(status_style),
     status_area,
   )
+  if state.param_query_form is Some(_) {
+    render_param_query_overlay(frame, state)
+  }
   if state.show_help {
     render_help_overlay(frame, state)
   } else if state.show_error {

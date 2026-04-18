@@ -19,7 +19,7 @@ pub fn render_menu_bar(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
   let area = frame.size()
   let bar_area = @layout.Rect::new(area.x, area.y, area.width, 1)
   let left = state.menu_bar_left_label()
-  let right = " ?=Help  Ctrl+Q=Quit "
+  let right = " F1=Help  Ctrl+Q=Quit "
   let text = fill_row(left, right, area.width)
   let bar_style = if state.in_transaction {
     @style.Style::default().fg(@style.Black).bg(@style.Yellow)
@@ -27,6 +27,82 @@ pub fn render_menu_bar(frame : @honeytui.Frame, state : @app.AppState) -> Unit {
     @style.Style::default().fg(@style.Black).bg(@style.Cyan)
   }
   frame.render_widget(@widget.Paragraph::new(text).style(bar_style), bar_area)
+}
+
+///|
+/// Render a centered overlay for parameterized-query input.
+/// Shows one labeled Input field per placeholder extracted from the SQL.
+pub fn render_param_query_overlay(
+  frame : @honeytui.Frame,
+  state : @app.AppState,
+) -> Unit {
+  let form = match state.param_query_form {
+    Some(f) => f
+    None => return
+  }
+  let area = frame.size()
+  let n = form.labels.length()
+  // Height: 2 (borders) + n fields + 1 hint row
+  let overlay_area = @layout.Placement::centered(
+    @layout.AtMost(64),
+    @layout.AtMost(n + 3),
+  ).resolve(area)
+  let block = @widget.Block::new()
+    .title(" Run with Parameters ")
+    .borders(@widget.Borders::all())
+    .border_style(@style.Style::default().fg(@style.Cyan))
+    .title_style(
+      @style.Style::default().fg(@style.Cyan).add_modifier(@style.bold),
+    )
+    .style(@style.Style::default().bg(@style.Black))
+  frame.render_widget(block, overlay_area)
+  let inner = overlay_area.inner(1)
+  if inner.height == 0 || inner.width == 0 {
+    return
+  }
+  // Compute label column width from the longest label (minimum 6)
+  let mut max_label_len = 6
+  for label in form.labels {
+    if label.length() > max_label_len {
+      max_label_len = label.length()
+    }
+  }
+  // label_col: label + 1 leading space + 1 trailing space
+  let label_col_width = max_label_len + 2
+  // Render each field row
+  let field_rows = if n < inner.height { n } else { inner.height - 1 }
+  for i = 0; i < field_rows; i = i + 1 {
+    let row_area = @layout.Rect::new(inner.x, inner.y + i, inner.width, 1)
+    let row_cols = @layout.Layout::new(@layout.Horizontal, [
+      @layout.Length(label_col_width),
+      @layout.Min(0),
+    ]).split(row_area)
+    let label = form.labels[i]
+    let label_style = if i == form.focus_idx {
+      @style.Style::default().fg(@style.Cyan).add_modifier(@style.bold)
+    } else {
+      @style.Style::default().fg(@style.White)
+    }
+    frame.render_widget(
+      @widget.Paragraph::new(" " + label).style(label_style),
+      row_cols[0],
+    )
+    frame.render_widget(
+      form.fields[i].focused(i == form.focus_idx),
+      row_cols[1],
+    )
+  }
+  // Hint row at the bottom of the inner area
+  if inner.height > 0 {
+    let hint_y = inner.y + inner.height - 1
+    let hint_area = @layout.Rect::new(inner.x, hint_y, inner.width, 1)
+    frame.render_widget(
+      @widget.Paragraph::new(
+        " Tab=next  Shift+Tab=prev  Enter=run  Esc=cancel  (values substituted as-is)",
+      ).style(@style.Style::default().fg(@style.BrightBlack)),
+      hint_area,
+    )
+  }
 }
 
 ///|
@@ -101,7 +177,7 @@ pub fn render_help_overlay(
         ("d", "delete selected profile"),
         ("q / Ctrl+Q", "quit"),
         ("", ""),
-        ("?", "close this help"),
+        ("F1", "close this help"),
       ]
     @app.Main =>
       [
@@ -129,7 +205,7 @@ pub fn render_help_overlay(
         ("Ctrl+E", "show full error details"),
         ("Ctrl+Q", "quit"),
         ("", ""),
-        ("?", "close this help"),
+        ("F1", "close this help"),
       ]
   }
   let overlay_area = @layout.Placement::centered(
