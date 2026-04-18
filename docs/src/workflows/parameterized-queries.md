@@ -19,7 +19,7 @@ Press `Ctrl+Enter` (or `F5`) to run the statement. honeydew detects the placehol
 │  ?1  [                                  ]│
 │  ?2  [                                  ]│
 │                                          │
-│  Tab=next  Shift+Tab=prev  Enter=run  Esc=cancel │
+│  Tab=next  Enter=run  Ctrl+S=save preset  Ctrl+P=presets  Esc=cancel │
 └──────────────────────────────────────────┘
 ```
 
@@ -31,11 +31,16 @@ Fill in each field and press `Enter` to execute. Values are substituted as-is (n
 | string | `'Alice'` |
 | NULL | `NULL` |
 
+## Saving and loading presets
+
+Press `Ctrl+S` to save the current parameter values as a named preset. Press `Ctrl+P` to open the preset list and load previously saved values.
+
 ## Navigation in the form
 
 | Key | Action |
 |---|---|
 | `Tab` | Next field |
-| `Shift+Tab` | Previous field |
 | `Enter` | Execute with the supplied values |
+| `Ctrl+S` | Save current values as a named preset |
+| `Ctrl+P` | Open preset list |
 | `Esc` | Cancel and return to the editor |
