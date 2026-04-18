@@ -8,5 +8,6 @@ src = "src"
 build-dir = "book"
 
 [output.html]
+no-section-label = true
 git-repository-url = "https://github.com/tiibun/honeydew"
 edit-url-template = "https://github.com/tiibun/honeydew/edit/main/docs/{path}"
