@@ -23,7 +23,7 @@ Items marked `[ ]` are not yet implemented.
   → Overlay appears with fields `user_id` and `status` → user fills values → query runs.
   Also triggered by `Ctrl+X` (EXPLAIN) when placeholders are present.
 
-- [ ] **Placeholder history**
+- [x] **Placeholder history**
   Remember previously entered values per placeholder name so the user can
   quickly re-run with the same inputs.
 

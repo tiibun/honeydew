@@ -838,7 +838,7 @@ fn open_param_query_form(
 ) -> @app.AppState {
   {
     ..state,
-    param_query_form: Some(form),
+    param_query_form: Some(form.with_initial_values(state.param_history)),
     status: "Enter placeholder values — Tab=next field  Enter=run  Esc=cancel",
     show_error: false,
   }
@@ -861,7 +861,11 @@ fn handle_param_query_key(
       match state.param_query_form {
         Some(form) => {
           let substituted = form.substituted_sql()
-          start_single_query({ ..state, param_query_form: None }, substituted)
+          let new_history = form.save_to_history(state.param_history)
+          start_single_query(
+            { ..state, param_query_form: None, param_history: new_history },
+            substituted,
+          )
         }
         None => state
       }

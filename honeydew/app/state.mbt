@@ -303,6 +303,8 @@ pub(all) struct AppState {
   search_editing : Bool
   file_prompt : @widget.Input?
   param_query_form : ParamForm?
+  /// Previously entered values per placeholder label, for pre-filling the form.
+  param_history : Array[(String, String)]
   focus : Panel
   status : String
   should_quit : Bool
@@ -345,6 +347,7 @@ pub fn AppState::new(group : @async.TaskGroup[Unit]) -> AppState {
     search_editing: false,
     file_prompt: None,
     param_query_form: None,
+    param_history: [],
     focus: Editor,
     status: connect_status(
       if profiles.length() > 0 {

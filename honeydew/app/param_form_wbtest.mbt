@@ -177,3 +177,88 @@ test "ParamForm handle_key: ShiftTab retreats focus" {
   let f = form.handle_key(ShiftTab) // wrap back from 0 → 1
   assert_eq(f.focus_idx, 1)
 }
+
+// ── Placeholder history tests ─────────────────────────────────────────────────
+
+///|
+test "with_initial_values: pre-fills fields from history" {
+  let sql = "SELECT * FROM t WHERE id = :id AND name = :name"
+  let form = ParamForm::new(sql, parse_placeholders(sql))
+  let history = [(":id", "42"), (":name", "Alice")]
+  let filled = form.with_initial_values(history)
+  assert_eq(filled.fields[0].value(), "42")
+  assert_eq(filled.fields[1].value(), "Alice")
+}
+
+///|
+test "with_initial_values: leaves fields empty when label not in history" {
+  let sql = "SELECT :x, :y"
+  let form = ParamForm::new(sql, parse_placeholders(sql))
+  let history = [(":x", "10")]
+  let filled = form.with_initial_values(history)
+  assert_eq(filled.fields[0].value(), "10")
+  assert_eq(filled.fields[1].value(), "") // :y not in history
+}
+
+///|
+test "with_initial_values: empty history leaves all fields empty" {
+  let sql = "SELECT :a"
+  let form = ParamForm::new(sql, parse_placeholders(sql))
+  let filled = form.with_initial_values([])
+  assert_eq(filled.fields[0].value(), "")
+}
+
+///|
+test "save_to_history: adds new entries to empty history" {
+  let sql = "SELECT :id, :name"
+  let form = ParamForm::new(sql, parse_placeholders(sql))
+  let form = {
+    ..form,
+    fields: [
+      @widget.Input::new().with_value("7"),
+      @widget.Input::new().with_value("Bob"),
+    ],
+  }
+  let hist = form.save_to_history([])
+  assert_eq(hist.length(), 2)
+  let (k0, v0) = hist[0]
+  assert_eq(k0, ":id")
+  assert_eq(v0, "7")
+  let (k1, v1) = hist[1]
+  assert_eq(k1, ":name")
+  assert_eq(v1, "Bob")
+}
+
+///|
+test "save_to_history: updates existing entries" {
+  let sql = "SELECT :x"
+  let form = ParamForm::new(sql, parse_placeholders(sql))
+  let form = { ..form, fields: [@widget.Input::new().with_value("new")] }
+  let old_hist : Array[(String, String)] = [(":x", "old"), (":y", "other")]
+  let hist = form.save_to_history(old_hist)
+  assert_eq(hist.length(), 2)
+  let (k0, v0) = hist[0]
+  assert_eq(k0, ":x")
+  assert_eq(v0, "new")
+  let (k1, v1) = hist[1]
+  assert_eq(k1, ":y")
+  assert_eq(v1, "other")
+}
+
+///|
+test "round-trip: save then restore values" {
+  let sql = "SELECT * FROM orders WHERE user_id = :user_id AND status = :status"
+  let labels = parse_placeholders(sql)
+  let form1 = ParamForm::new(sql, labels)
+  let form1 = {
+    ..form1,
+    fields: [
+      @widget.Input::new().with_value("123"),
+      @widget.Input::new().with_value("active"),
+    ],
+  }
+  let hist = form1.save_to_history([])
+  let form2 = ParamForm::new(sql, labels).with_initial_values(hist)
+  assert_eq(form2.fields[0].value(), "123")
+  assert_eq(form2.fields[1].value(), "active")
+}

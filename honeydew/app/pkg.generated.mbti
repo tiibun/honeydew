@@ -51,6 +51,7 @@ pub(all) struct AppState {
   search_editing : Bool
   file_prompt : @widget.Input?
   param_query_form : ParamForm?
+  param_history : Array[(String, String)]
   focus : Panel
   status : String
   should_quit : Bool
@@ -133,13 +134,17 @@ pub(all) enum Panel {
 
 pub(all) struct ParamForm {
   original_sql : String
+  sql_prefix : String
   labels : Array[String]
   fields : Array[@widget.Input]
   focus_idx : Int
 }
 pub fn ParamForm::handle_key(Self, @terminal.Key) -> Self
 pub fn ParamForm::new(String, Array[String]) -> Self
+pub fn ParamForm::save_to_history(Self, Array[(String, String)]) -> Array[(String, String)]
 pub fn ParamForm::substituted_sql(Self) -> String
+pub fn ParamForm::with_initial_values(Self, Array[(String, String)]) -> Self
+pub fn ParamForm::with_sql_prefix(Self, String) -> Self
 
 pub(all) enum RunningQuery {
   Single(sql~ : String, started~ : @bench.Timestamp)

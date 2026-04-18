@@ -36,7 +36,10 @@ pub fn ParamForm::new(sql : String, labels : Array[String]) -> ParamForm {
 ///|
 /// Return a copy of this form with `prefix` prepended to the substituted SQL on submit.
 /// Used by EXPLAIN to wrap the substituted statement.
-pub fn ParamForm::with_sql_prefix(self : ParamForm, prefix : String) -> ParamForm {
+pub fn ParamForm::with_sql_prefix(
+  self : ParamForm,
+  prefix : String,
+) -> ParamForm {
   { ..self, sql_prefix: prefix }
 }
 
@@ -274,6 +277,75 @@ fn substitute_params(
     },
   )
   result.to_string()
+}
+
+// ── History helpers ───────────────────────────────────────────────────────────
+
+///|
+/// Look up the last recorded value for `label` in `history`.
+/// Returns empty string when not found.
+fn ph_history_lookup(
+  history : Array[(String, String)],
+  label : String,
+) -> String {
+  for i = 0; i < history.length(); i = i + 1 {
+    let (k, v) = history[i]
+    if k == label {
+      return v
+    }
+  }
+  ""
+}
+
+///|
+/// Return a copy of `history` with the value for `label` set to `value`.
+/// Adds a new entry when `label` is not yet in the history.
+fn ph_history_update(
+  history : Array[(String, String)],
+  label : String,
+  value : String,
+) -> Array[(String, String)] {
+  for i = 0; i < history.length(); i = i + 1 {
+    let (k, _) = history[i]
+    if k == label {
+      let new_history = history.copy()
+      new_history[i] = (label, value)
+      return new_history
+    }
+  }
+  let new_history = history.copy()
+  new_history.push((label, value))
+  new_history
+}
+
+///|
+/// Return a copy of this form with input fields pre-filled from `history`.
+/// Only fills fields whose history entry is non-empty.
+pub fn ParamForm::with_initial_values(
+  self : ParamForm,
+  history : Array[(String, String)],
+) -> ParamForm {
+  let new_fields = self.fields.copy()
+  for i = 0; i < self.labels.length(); i = i + 1 {
+    let v = ph_history_lookup(history, self.labels[i])
+    if v != "" {
+      new_fields[i] = new_fields[i].with_value(v)
+    }
+  }
+  { ..self, fields: new_fields }
+}
+
+///|
+/// Return an updated history that records the current field values for each label.
+pub fn ParamForm::save_to_history(
+  self : ParamForm,
+  history : Array[(String, String)],
+) -> Array[(String, String)] {
+  let mut h = history
+  for i = 0; i < self.labels.length(); i = i + 1 {
+    h = ph_history_update(h, self.labels[i], self.fields[i].value())
+  }
+  h
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
