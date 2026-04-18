@@ -13,9 +13,11 @@ The Objects panel on the left side of the Main screen displays the database sche
   ▶ orders
 ▶ Views
   ▶ active_users
+▶ Routines
+  report_summary
 ```
 
-Top-level nodes group objects by type (Tables, Views). Expand a table to see its columns and their types.
+Top-level nodes group objects by type (Tables, Views, Routines). Expand a table to see its columns and their types. The Routines category is only shown when the database has stored procedures or functions (PostgreSQL/MySQL).
 
 ## Navigation
 

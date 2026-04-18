@@ -24,6 +24,11 @@ Lists all saved connection profiles. Navigate with `↑` / `↓`.
 | **Database** | File path or `:memory:` (SQLite); schema name (PostgreSQL/MySQL) |
 | **Username** | Login user (PostgreSQL/MySQL only) |
 | **Password** | Login password — leave blank if not required |
+| **Connect timeout** | Seconds to wait before giving up on a connection (default: 10; PostgreSQL/MySQL only) |
+| **TLS** | Toggle TLS/SSL on or off (press `Enter` or `Space`; PostgreSQL/MySQL only) |
+| **CA cert** | Path to a CA certificate file for TLS verification (PostgreSQL/MySQL only) |
+| **Client cert** | Path to a client certificate file for mutual TLS (PostgreSQL/MySQL only) |
+| **Client key** | Path to the client private key file for mutual TLS (PostgreSQL/MySQL only) |
 
 Navigate fields with `Tab` / `Shift+Tab`. On the **Database** row, press `↑` / `↓` to cycle through database types; the port and database defaults update automatically.
 
