@@ -34,6 +34,8 @@ honeydew uses a three-pane layout:
 - **Top-right pane** — SQL editor with syntax highlighting
 - **Bottom-right pane** — Query results
 
+> The editor title bar shows only a selection of shortcuts. See [Key Bindings](reference/key-bindings.md) for the full list.
+
 ## Two screens
 
 | Screen | Purpose |

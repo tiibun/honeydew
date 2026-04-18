@@ -55,6 +55,8 @@ After a successful build the executable is at:
 _build/native/release/build/tiibun/honeydew/cmd/main/main.exe
 ```
 
+MoonBit uses `.exe` as the binary extension on all platforms.
+
 Run it directly:
 
 ```sh
@@ -66,6 +68,8 @@ Or use `moon run` from the workspace root:
 ```sh
 moon run honeydew/cmd/main
 ```
+
+> **Note:** `moon run` compiles and runs a debug build, which may be noticeably slower than the release binary above.
 
 > **Tip:** Create a shell alias for convenience:
 > ```sh

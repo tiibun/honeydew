@@ -12,11 +12,11 @@ When you launch honeydew you land on the **Connect screen**.
 │              │  Database      [SQLite                 ] │
 │              │  Database file [:memory:               ] │
 │              │                                         │
-│              │  Ctrl+S=save  q=quit                    │
+│              │  Ctrl+S=save  Ctrl+Q=quit               │
 └──────────────┴─────────────────────────────────────────┘
 ```
 
-The **left panel** lists saved profiles. The **right panel** shows the connection form for the selected or new connection.
+The **left panel** lists saved profiles. The **right panel** shows connection details for the selected profile, or the editable connection form when you focus it with `Tab`.
 
 ## Connecting to an in-memory SQLite database
 
@@ -28,7 +28,7 @@ honeydew opens the Main screen and creates a fresh in-memory database.
 ## Connecting to a PostgreSQL or MySQL server
 
 1. In the form, press `↑` or `↓` on the **Database** row to change the database type.
-2. Fill in the fields:
+2. Use `Tab` / `Shift+Tab` to move between fields and fill them in:
 
 | Field | Description |
 |---|---|
@@ -46,7 +46,7 @@ honeydew opens the Main screen and creates a fresh in-memory database.
 
 Press `Ctrl+S` to save the current form as a named profile. The password is stored in the system keyring when available, otherwise in the profile file.
 
-Saved profiles appear in the left panel on future launches. Select a profile with `↑`/`↓` and press `Enter` to connect without re-entering credentials.
+Saved profiles appear in the left panel on future launches. Select a profile with `↑`/`↓` and press `Enter` to load it into the form, then press `Enter` again to connect.
 
 ## Deleting a profile
 

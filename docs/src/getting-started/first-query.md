@@ -38,6 +38,8 @@ If the editor contains multiple statements separated by `;`, press `F5` to execu
 
 Press `Ctrl+C` to cancel a query that is still running.
 
+> **Note:** When no query is running, `Ctrl+C` exits honeydew immediately. Use `Ctrl+Q` as an explicit quit shortcut.
+
 ## Moving between panels
 
 Press `Tab` to cycle focus between the Objects browser, the SQL editor, and the Results panel. The active panel is highlighted with a cyan border.
